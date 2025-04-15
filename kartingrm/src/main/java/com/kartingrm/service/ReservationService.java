@@ -18,7 +18,8 @@ public class ReservationService {
     public Reservation createReservation(Reservation reservation) {
         // Calculo del precio final
         double finalPrice = reservation.getBasePrice() - (reservation.getBasePrice() * reservation.getDiscountPercentage() / 100);
-        reservation.setBasePrice(finalPrice);
+        reservation.setFinalPrice(finalPrice);
+
         // TODO agregar validaciones adicionales, Recomendaciones :
         // - Verificar que la sesión tenga capacidad disponible
         // - Validar que el cliente esté habilitado para reservar
