@@ -1,5 +1,8 @@
 package com.kartingrm.dto;
 
+import com.kartingrm.entity.RateType;
+import com.kartingrm.entity.ReservationStatus;
+
 public record ReservationResponseDTO(
         Long id,
         String reservationCode,

@@ -1,5 +1,6 @@
 package com.kartingrm.dto;
 
+import com.kartingrm.entity.RateType;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.time.LocalTime;

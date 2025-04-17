@@ -1,5 +1,6 @@
 package com.kartingrm.service;
 
+import com.kartingrm.dto.IncomeByGroupDTO;
 import com.kartingrm.dto.IncomeByRateDTO;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;

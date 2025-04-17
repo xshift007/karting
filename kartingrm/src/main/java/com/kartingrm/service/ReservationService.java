@@ -1,10 +1,19 @@
 package com.kartingrm.service;
 
+import com.kartingrm.dto.ReservationRequestDTO;
+import com.kartingrm.entity.Client;
 import com.kartingrm.entity.Reservation;
+import com.kartingrm.entity.ReservationStatus;
+import com.kartingrm.entity.Session;
 import com.kartingrm.repository.ReservationRepository;
 import com.kartingrm.service.pricing.DiscountService;
+import com.kartingrm.service.pricing.Tariff;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+
+
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 

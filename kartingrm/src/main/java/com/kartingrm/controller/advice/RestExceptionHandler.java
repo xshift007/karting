@@ -1,5 +1,6 @@
 package com.kartingrm.controller.advice;
 
+import com.kartingrm.exception.OverlapException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
