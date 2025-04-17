@@ -1,41 +1,25 @@
 package com.kartingrm.controller;
 
-import com.kartingrm.dto.ReservationRequestDTO;
-import com.kartingrm.dto.ReservationResponseDTO;
+import com.kartingrm.dto.*;
 import com.kartingrm.entity.Reservation;
+import com.kartingrm.mapper.ReservationMapper;
 import com.kartingrm.service.ReservationService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/reservations")
+@RequiredArgsConstructor
 public class ReservationController {
 
     private final ReservationService reservationService;
+    private final ReservationMapper reservationMapper;
 
-    public ReservationController(ReservationService reservationService) {
-        this.reservationService = reservationService;
-    }
-
-    @PostMapping
-    public Reservation createReservation(@RequestBody Reservation reservation) {
-        return reservationService.createReservation(reservation);
-    }
-
-    @GetMapping
-    public List<Reservation> listReservations() {
-        return reservationService.getAllReservations();
-    }
-
-    @GetMapping("/{id}")
-    public Reservation getReservation(@PathVariable Long id) {
-        return reservationService.getReservationById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con id: " + id));
-    }
-
+    /** Crear reserva */
     @PostMapping
     public ResponseEntity<ReservationResponseDTO> create(
             @Valid @RequestBody ReservationRequestDTO dto) {
@@ -44,4 +28,19 @@ public class ReservationController {
                 .body(reservationMapper.toDto(res));
     }
 
+    /** Listar todas las reservas */
+    @GetMapping
+    public List<ReservationResponseDTO> list() {
+        return reservationService.findAll()
+                .stream()
+                .map(reservationMapper::toDto)
+                .toList();
+    }
+
+    /** Obtener una reserva por id */
+    @GetMapping("/{id}")
+    public ReservationResponseDTO get(@PathVariable Long id) {
+        return reservationMapper.toDto(
+                reservationService.findById(id));
+    }
 }

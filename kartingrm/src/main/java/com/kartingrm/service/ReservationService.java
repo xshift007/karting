@@ -34,25 +34,29 @@ public class ReservationService {
         this.discService    = d;
     }
 
+
+
+    // update, cancel, getters…
+
+
     public Reservation createReservation(ReservationRequestDTO dto) {
 
         Client client = clientService.get(dto.clientId());
-        // 1.  bloque / sesión
+
         Session session = sessionService.create(
                 new Session(null, dto.sessionDate(),
                         dto.startTime(), dto.endTime(), 15));
 
-        // 2. precio base
         double base = Tariff.valueOf(dto.rateType().name()).getPrice();
 
-        // 3. descuentos
-        double dGroup   = discService.groupDiscount(dto.participants());
-        double dFreq    = discService.frequentDiscount(client.getTotalVisitsThisMonth());
+        double dGroup = discService.groupDiscount(dto.participants());
+        double dFreq  = discService.frequentDiscount(
+                clientService.getTotalVisitsThisMonth(client));
         boolean birthday = dto.sessionDate().equals(client.getBirthDate());
-        double dBirth   = discService.birthdayDiscount(birthday,
+        double dBirth = discService.birthdayDiscount(birthday,
                 dto.participants(), birthday ? 1 : 0);
 
-        double totalDisc = dGroup + dFreq + dBirth;
+        double totalDisc  = dGroup + dFreq + dBirth;
         double finalPrice = base * (1 - totalDisc / 100);
 
         Reservation res = new Reservation(null,
@@ -62,11 +66,17 @@ public class ReservationService {
                 base, totalDisc, finalPrice,
                 ReservationStatus.PENDING, LocalDateTime.now());
 
-        // 4. persistir y actualizar visitas
         clientService.incrementVisits(client);
         return reservationRepo.save(res);
     }
 
-    // update, cancel, getters…
+    public List<Reservation> findAll() {
+        return reservationRepo.findAll();
+    }
+
+    public Reservation findById(Long id) {
+        return reservationRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
+    }
 }
 

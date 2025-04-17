@@ -30,5 +30,7 @@ public class ReportService {
 
     public List<IncomeByGroupDTO> ingresosPorGrupo(LocalDate f, LocalDate t) {
         // similar: agrupar por r.participants rangos (1‑2, 3‑5…)
+        //return List.of();
+        return List.of();
     }
 }
