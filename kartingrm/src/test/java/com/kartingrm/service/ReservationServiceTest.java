@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ReservationServiceTest {
 
     @Autowired ReservationService service;
@@ -33,7 +35,7 @@ class ReservationServiceTest {
     void setup() {
         clients.deleteAll();
         // crear cliente con 6 visitas
-        Client c = new Client(null, "Test", "t@t.com", null, LocalDate.now(), 6, LocalDateTime.now());
+        Client c = new Client(null, "Test", "t@t.com", null, LocalDate.of(2000, 1, 1), 6, LocalDateTime.now());
         clients.save(c);
     }
 
