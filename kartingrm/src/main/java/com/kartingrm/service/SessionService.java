@@ -34,7 +34,10 @@ public class SessionService {
 
     @Transactional
     public void delete(Long id) {
-        // verificar reservas antes de borrar
+        if (reservationRepo.participantsInSession(id) > 0) {
+            throw new IllegalStateException("No se puede eliminar: la sesión tiene reservas");
+        }
         sessionRepo.deleteById(id);
     }
+
 }

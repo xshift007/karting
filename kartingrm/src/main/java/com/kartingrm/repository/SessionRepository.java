@@ -24,5 +24,12 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     boolean existsOverlap(LocalDate date, LocalTime start, LocalTime end);
 
 
+    @Query("""
+ SELECT COALESCE(SUM(r.participants),0)
+ FROM Reservation r
+ WHERE r.session.id = :sessionId
+""")
+    int participantsInSession(Long sessionId);
+
 }
 

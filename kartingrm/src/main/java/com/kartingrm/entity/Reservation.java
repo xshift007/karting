@@ -24,9 +24,10 @@ public class Reservation {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    @OneToOne
-    @JoinColumn(name = "session_id", nullable = false)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "session_id")
     private Session session;
+
 
     // Duración de la reserva en minutos (generalmente igual a la duración de la sesión)
     @Column(nullable = false)

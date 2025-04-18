@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 
 import java.time.LocalDateTime;
+import java.time.MonthDay;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,13 +47,19 @@ public class ReservationService {
         Session session = sessionService.create(
                 new Session(null, dto.sessionDate(),
                         dto.startTime(), dto.endTime(), 15));
-
+        // --- NUEVO: validar cupo ---
+        int ocupados = reservationRepo.participantsInSession(session.getId());
+        if (ocupados + dto.participants() > session.getCapacity()) {
+            throw new IllegalStateException("Capacidad de la sesión superada");
+        }
+        //----------------------------
         double base = Tariff.valueOf(dto.rateType().name()).getPrice();
 
         double dGroup = discService.groupDiscount(dto.participants());
         double dFreq  = discService.frequentDiscount(
                 clientService.getTotalVisitsThisMonth(client));
-        boolean birthday = dto.sessionDate().equals(client.getBirthDate());
+        boolean birthday = MonthDay.from(dto.sessionDate())
+                .equals(MonthDay.from(client.getBirthDate()));
         double dBirth = discService.birthdayDiscount(birthday,
                 dto.participants(), birthday ? 1 : 0);
 
@@ -78,5 +85,7 @@ public class ReservationService {
         return reservationRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
     }
+
+
 }
 
