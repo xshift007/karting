@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.LocalDate;
@@ -21,8 +23,14 @@ import java.time.LocalTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 class PaymentServiceTest {
+
+    @MockBean
+    private JavaMailSender mailSender;
+
+    @Autowired
+    private PaymentService paymentService;
+
 
     @Autowired PaymentService paySvc;
     @Autowired ReservationService resSvc;

@@ -2,6 +2,7 @@ package com.kartingrm.service;
 
 import com.kartingrm.entity.Session;
 import com.kartingrm.exception.OverlapException;
+import com.kartingrm.repository.ReservationRepository;
 import com.kartingrm.repository.SessionRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -10,13 +11,19 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+
 @Service
 public class SessionService {
 
     private final SessionRepository sessionRepo;
+    private final ReservationRepository reservationRepo;   // NUEVO
 
-    public SessionService(SessionRepository sessionRepo) {
+
+
+    public SessionService(SessionRepository sessionRepo,
+                          ReservationRepository reservationRepo) {  // ← nuevo parámetro
         this.sessionRepo = sessionRepo;
+        this.reservationRepo = reservationRepo;           // ← lo inicializamos
     }
 
     public List<Session> weeklyRack(LocalDate monday) {
@@ -35,9 +42,9 @@ public class SessionService {
     @Transactional
     public void delete(Long id) {
         if (reservationRepo.participantsInSession(id) > 0) {
-            throw new IllegalStateException("No se puede eliminar: la sesión tiene reservas");
+            throw new IllegalStateException(
+                    "No se puede eliminar: la sesión tiene reservas");
         }
         sessionRepo.deleteById(id);
     }
-
 }

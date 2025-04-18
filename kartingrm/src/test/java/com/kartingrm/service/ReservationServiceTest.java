@@ -43,7 +43,12 @@ class ReservationServiceTest {
     void calculateDiscounts() {
         Client c = clients.findAll().get(0);
         var dto = new ReservationRequestDTO(
-                "R1", c.getId(), LocalDate.now(), LocalTime.of(12,0), LocalTime.of(12,30), 4, RateType.LAP_10);
+                "R1", c.getId(),
+                LocalDate.of(2030, 4, 18),        // cualquier día ≠ 1‑ene
+                LocalTime.of(12,0),
+                LocalTime.of(12,30),
+                4, RateType.LAP_10);
+
         Reservation res = service.createReservation(dto);
         // grupo (10%) + frecuente (20%) = 30% total
         assertEquals(15000 * 0.70, res.getFinalPrice());

@@ -2,6 +2,7 @@ package com.kartingrm.service;
 
 import com.kartingrm.entity.Session;
 import com.kartingrm.exception.OverlapException;
+import com.kartingrm.repository.ReservationRepository;
 import com.kartingrm.repository.SessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,14 @@ class SessionServiceTest {
     @Autowired
     SessionRepository repo;
 
+    @Autowired
+    ReservationRepository reservations;
+
     @BeforeEach
-    void clean() { repo.deleteAll(); }
+    void clean() {
+        reservations.deleteAll(); // primero reservas – rompe la FK
+        repo.deleteAll();         // luego sesiones
+    }
 
     @Test
     void createWithoutOverlap() {
