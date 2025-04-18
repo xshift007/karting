@@ -6,35 +6,38 @@ import com.kartingrm.repository.KartRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase      //  ◀◀ usa H2 en memoria
 class KartServiceTest {
 
-    @Autowired
-    KartService svc;
-    @Autowired
-    KartRepository repo;
+    @Autowired KartService svc;
+    @Autowired KartRepository repo;
 
     @BeforeEach
-    void init(){
+    void init() {
         repo.deleteAll();
-        IntStream.rangeClosed(1,5)
-                .mapToObj(i -> new Kart(null,"K%03d".formatted(i), KartStatus.AVAILABLE,
-                        null,null))
+        IntStream.rangeClosed(1, 5)
+                .mapToObj(i -> new Kart(null, "K%03d".formatted(i),
+                        KartStatus.AVAILABLE, null, null))
                 .forEach(repo::save);
     }
 
     @Test
-    void allocateThree() {
+    void allocateThreeKartsSuccessfully() {
         List<Kart> list = svc.allocate(3);
-        assertEquals(3, list.size());
-        assertTrue(list.stream().allMatch(k -> k.getStatus()==KartStatus.RESERVED));
+
+        assertThat(list)
+                .hasSize(3)
+                .allMatch(k -> k.getStatus() == KartStatus.RESERVED);
     }
 }

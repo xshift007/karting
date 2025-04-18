@@ -2,49 +2,50 @@ package com.kartingrm.service;
 
 import com.kartingrm.entity.Session;
 import com.kartingrm.exception.OverlapException;
-import com.kartingrm.repository.ReservationRepository;
 import com.kartingrm.repository.SessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase
 class SessionServiceTest {
 
-    @Autowired
-    SessionService service;
-    @Autowired
-    SessionRepository repo;
-
-    @Autowired
-    ReservationRepository reservations;
+    @Autowired SessionService service;
+    @Autowired SessionRepository repo;
 
     @BeforeEach
-    void clean() {
-        reservations.deleteAll(); // primero reservas – rompe la FK
-        repo.deleteAll();         // luego sesiones
+    void cleanRepo() {
+        repo.deleteAll();
     }
 
     @Test
-    void createWithoutOverlap() {
-        Session s1 = new Session(null, LocalDate.now(), LocalTime.of(10,0), LocalTime.of(11,0), 5);
-        assertDoesNotThrow(() -> service.create(s1));
+    void createSessionWithoutOverlap() {
+        Session s = new Session(null, LocalDate.now(),
+                LocalTime.of(10, 0), LocalTime.of(11, 0), 5);
+
+        assertThatCode(() -> service.create(s)).doesNotThrowAnyException();
     }
 
     @Test
-    void createWithOverlap() {
-        Session s1 = new Session(null, LocalDate.now(), LocalTime.of(9,0), LocalTime.of(10,0), 5);
-        service.create(s1);
-        Session s2 = new Session(null, LocalDate.now(), LocalTime.of(9,30), LocalTime.of(10,30), 5);
-        assertThrows(OverlapException.class, () -> service.create(s2));
+    void throwExceptionWhenOverlapDetected() {
+        service.create(new Session(null, LocalDate.now(),
+                LocalTime.of(9, 0), LocalTime.of(10, 0), 5));
+
+        Session overlapped = new Session(null, LocalDate.now(),
+                LocalTime.of(9, 30), LocalTime.of(10, 30), 5);
+
+        assertThatThrownBy(() -> service.create(overlapped))
+                .isInstanceOf(OverlapException.class);
     }
 }
