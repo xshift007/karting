@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;   //  ◀◀  NUEVO
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -43,5 +44,7 @@ class PaymentServiceTest {
 
         assertThat(p.getFinalAmountInclVat())
                 .isCloseTo(r.getFinalPrice() * 1.19, within(0.01));
+        // Si usas offset:
+        // .isCloseTo(r.getFinalPrice() * 1.19, offset(0.01));
     }
 }
