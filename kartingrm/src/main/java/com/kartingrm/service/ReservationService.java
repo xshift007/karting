@@ -75,45 +75,50 @@ public class ReservationService {
         return reservationRepo.save(res);
     }
 
+    @Transactional
     public Reservation update(Long id, ReservationRequestDTO dto) {
-        Reservation existing = findById(id);
-        existing.setReservationCode(dto.reservationCode());
 
-        // recrear la sesión con la misma capacidad
-        Session oldSes = existing.getSession();
-        Session newSes = sessionService.create(
-                new Session(oldSes.getId(),
-                        dto.sessionDate(),
-                        dto.startTime(),
-                        dto.endTime(),
-                        oldSes.getCapacity())
-        );
-        existing.setSession(newSes);
+        // 1) Recuperamos la reserva vigente
+        Reservation res = findById(id);
 
-        // ajustar el cupo (quitamos nuestros propios participantes del recuento)
-        int ocupados = reservationRepo.participantsInSession(newSes.getId())
-                - existing.getParticipants();
-        if (ocupados + dto.participants() > newSes.getCapacity()) {
+        // 2) Actualizamos código (si cambió)
+        res.setReservationCode(dto.reservationCode());
+
+        // 3) Ajustamos la sesión **existente** (no se crea otra)
+        Session ses = res.getSession();
+        ses.setSessionDate(dto.sessionDate());
+        ses.setStartTime(dto.startTime());
+        ses.setEndTime(dto.endTime());
+        // ‑ CascadeType.ALL se encargará de persistir los cambios en la sesión
+
+        // 4) Chequeo de capacidad: contamos ocupados excepto la propia reserva
+        int ocupados = reservationRepo.participantsInSession(ses.getId()) - res.getParticipants();
+        if (ocupados + dto.participants() > ses.getCapacity()) {
             throw new IllegalStateException("Capacidad de la sesión superada");
         }
-        existing.setParticipants(dto.participants());
+        res.setParticipants(dto.participants());
 
-        // recalcular precios y descuentos (idéntico a create)
+        // 5) Re‑calculo de tarifas y descuentos
         double base = Tariff.forDate(dto.sessionDate(), dto.rateType()).getPrice();
-        existing.setBasePrice(base);
+        res.setBasePrice(base);
+
         double dGroup = discService.groupDiscount(dto.participants());
         double dFreq  = discService.frequentDiscount(
-                clientService.getTotalVisitsThisMonth(existing.getClient()));
+                clientService.getTotalVisitsThisMonth(res.getClient()));
+
         boolean birthday = MonthDay.from(dto.sessionDate())
-                .equals(MonthDay.from(existing.getClient().getBirthDate()));
+                .equals(MonthDay.from(res.getClient().getBirthDate()));
         double dBirth = discService.birthdayDiscount(
                 birthday, dto.participants(), birthday ? 1 : 0);
-        double totalDisc = dGroup + dFreq + dBirth;
-        existing.setDiscountPercentage(totalDisc);
-        existing.setFinalPrice(base * (1 - totalDisc / 100));
 
-        return reservationRepo.save(existing);
+        double totalDisc = dGroup + dFreq + dBirth;
+        res.setDiscountPercentage(totalDisc);
+        res.setFinalPrice(base * (1 - totalDisc / 100));
+
+        // 6) Guardamos y devolvemos la reserva actualizada
+        return reservationRepo.save(res);
     }
+
 
     public List<Reservation> findAll() {
         return reservationRepo.findAll();

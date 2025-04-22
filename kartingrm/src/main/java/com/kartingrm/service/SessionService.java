@@ -34,20 +34,17 @@ public class SessionService {
         return sessionRepo.findBySessionDateBetween(monday, monday.plusDays(6));
     }
 
-    public Session create(Session session) {
-        // Solo comprobamos solapamiento al crear una sesión nueva (id == null)
-        if (session.getId() == null) {
-            boolean overlap = sessionRepo.existsOverlap(
-                    session.getSessionDate(),
-                    session.getStartTime(),
-                    session.getEndTime()
-            );
-            if (overlap) {
-                throw new OverlapException("Ya existe una sesión solapada");
-            }
+    public Session create(Session s) {
+        // si es alta (id nulo) validar solapamiento
+        if (s.getId() == null &&
+                sessionRepo.existsOverlap(s.getSessionDate(),
+                        s.getStartTime(),
+                        s.getEndTime())) {
+            throw new OverlapException("Ya existe una sesión solapada");
         }
-        return sessionRepo.save(session);
+        return sessionRepo.save(s);
     }
+
 
     @Transactional
     public void delete(Long id) {

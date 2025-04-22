@@ -24,11 +24,14 @@ public enum Tariff {
     }
 
     public static Tariff forDate(LocalDate date, RateType rate) {
+        // el tipo explícito tiene prioridad
+        if (rate == RateType.WEEKEND) return WEEKEND;
+        if (rate == RateType.HOLIDAY) return HOLIDAY;
+
         DayOfWeek dow = date.getDayOfWeek();
-        boolean isWeekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
-        if (isWeekend) return WEEKEND;
+        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) return WEEKEND;
         if (HolidayService.isHoliday(date)) return HOLIDAY;
-        // si no, uso tarifa normal según rate
-        return Tariff.valueOf(rate.name());
+        return Tariff.valueOf(rate.name());   // LAP_xx
     }
+
 }

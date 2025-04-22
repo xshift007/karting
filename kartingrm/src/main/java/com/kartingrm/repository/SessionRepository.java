@@ -15,21 +15,12 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     //Consultas por fecha o por intervalo de tiempo si se requieren
     @Query("""
-   SELECT CASE WHEN COUNT(s)>0 THEN true ELSE false END
-   FROM Session s
-   WHERE s.sessionDate = :date
-     AND (:start BETWEEN s.startTime AND s.endTime
-       OR :end BETWEEN s.startTime AND s.endTime)
+ SELECT count(s) > 0
+ FROM Session s
+ WHERE s.sessionDate = :date
+   AND (:start <  s.endTime AND :end >  s.startTime)
 """)
     boolean existsOverlap(LocalDate date, LocalTime start, LocalTime end);
-
-
-    @Query("""
- SELECT COALESCE(SUM(r.participants),0)
- FROM Reservation r
- WHERE r.session.id = :sessionId
-""")
-    int participantsInSession(Long sessionId);
 
 }
 
