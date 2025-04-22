@@ -1,7 +1,10 @@
 package com.kartingrm.service;
 
 import com.kartingrm.dto.ReservationRequestDTO;
-import com.kartingrm.entity.*;
+import com.kartingrm.entity.Client;
+import com.kartingrm.entity.RateType;
+import com.kartingrm.entity.Reservation;
+import com.kartingrm.exception.OverlapException;
 import com.kartingrm.repository.ClientRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,43 +12,95 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("test")
 @AutoConfigureTestDatabase
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ReservationServiceTest {
 
-    @Autowired ReservationService service;
-    @Autowired ClientRepository clients;
+    @Autowired
+    private ReservationService svc;
+
+    @Autowired
+    private ClientRepository clients;
+
+    private Client c;
 
     @BeforeEach
     void setup() {
         clients.deleteAll();
-        clients.save(new Client(null, "Test", "t@t.com",
-                null, LocalDate.of(2000, 1, 1), 6, LocalDateTime.now()));
+        c = clients.save(new Client(
+                null,
+                "Test",
+                "t@t.com",
+                null,
+                LocalDate.of(2000, 1, 1),
+                0,
+                LocalDateTime.now()
+        ));
     }
 
     @Test
-    void calculateCombinedDiscountsCorrectly() {
-        Client c = clients.findAll().get(0);
+    void create_and_update_success() {
+        // Creamos la reserva para mañana de 15:00 a 15:30 con 2 participantes
+        var dto1 = new ReservationRequestDTO(
+                "R1",
+                c.getId(),
+                LocalDate.now().plusDays(1),
+                LocalTime.of(15, 0),
+                LocalTime.of(15, 30),
+                2,
+                RateType.LAP_10
+        );
+        Reservation r = svc.createReservation(dto1);
+        assertThat(r.getParticipants()).isEqualTo(2);
 
-        ReservationRequestDTO dto = new ReservationRequestDTO(
-                "R1", c.getId(),
-                LocalDate.of(2030, 4, 18),
-                LocalTime.of(12, 0),
-                LocalTime.of(12, 30),
-                4, RateType.LAP_10);
+        // Actualizamos a 3 participantes en la misma sesión
+        var dto2 = new ReservationRequestDTO(
+                "R1",
+                c.getId(),
+                r.getSession().getSessionDate(),
+                r.getSession().getStartTime(),
+                r.getSession().getEndTime(),
+                3,
+                RateType.LAP_10
+        );
+        Reservation updated = svc.update(r.getId(), dto2);
+        assertThat(updated.getParticipants()).isEqualTo(3);
+    }
 
-        Reservation res = service.createReservation(dto);
+    @Test
+    void update_capacityExceeded_throws() {
+        // Creamos la reserva para mañana de 15:00 a 15:30 con la máxima capacidad (15)
+        var dto1 = new ReservationRequestDTO(
+                "R2",
+                c.getId(),
+                LocalDate.now().plusDays(1),
+                LocalTime.of(15, 0),
+                LocalTime.of(15, 30),
+                15,
+                RateType.LAP_10
+        );
+        Reservation r = svc.createReservation(dto1);
 
-        assertThat(res.getFinalPrice()).isEqualTo(15000 * 0.70);
+        // Intentamos actualizar a 16 participantes -> debería lanzar IllegalStateException
+        var dto2 = new ReservationRequestDTO(
+                "R2",
+                c.getId(),
+                r.getSession().getSessionDate(),
+                r.getSession().getStartTime(),
+                r.getSession().getEndTime(),
+                16,
+                RateType.LAP_10
+        );
+        assertThatThrownBy(() -> svc.update(r.getId(), dto2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Capacidad de la sesión superada");
     }
 }

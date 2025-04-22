@@ -56,7 +56,7 @@ class ReservationControllerTest {
         ReservationRequestDTO req = new ReservationRequestDTO(
                 "C1",
                 1L,
-                LocalDate.of(2025, 4, 17),
+                LocalDate.of(2025, 5, 17),
                 LocalTime.of(10, 0),
                 LocalTime.of(10, 30),
                 2,
@@ -74,7 +74,7 @@ class ReservationControllerTest {
                 1L,
                 "C1",
                 new ClientDTO(1L, "Test User", "test@example.com"),
-                new SessionDTO(1L, LocalDate.of(2025, 4, 17), LocalTime.of(10, 0), LocalTime.of(10, 30)),
+                new SessionDTO(1L, LocalDate.of(2025, 5, 17), LocalTime.of(10, 0), LocalTime.of(10, 30)),
                 2,
                 RateType.LAP_10,
                 15000.0,

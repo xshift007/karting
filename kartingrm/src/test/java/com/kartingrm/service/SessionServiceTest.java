@@ -32,7 +32,7 @@ class SessionServiceTest {
     @Test
     void createSessionWithoutOverlap() {
         Session s = new Session(null, LocalDate.now(),
-                LocalTime.of(10, 0), LocalTime.of(11, 0), 5);
+                LocalTime.of(15, 0), LocalTime.of(16, 0), 5);
 
         assertThatCode(() -> service.create(s)).doesNotThrowAnyException();
     }
@@ -40,10 +40,10 @@ class SessionServiceTest {
     @Test
     void throwExceptionWhenOverlapDetected() {
         service.create(new Session(null, LocalDate.now(),
-                LocalTime.of(9, 0), LocalTime.of(10, 0), 5));
+                LocalTime.of(15, 0), LocalTime.of(16, 0), 5));
 
         Session overlapped = new Session(null, LocalDate.now(),
-                LocalTime.of(9, 30), LocalTime.of(10, 30), 5);
+                LocalTime.of(15, 30), LocalTime.of(16, 30), 5);
 
         assertThatThrownBy(() -> service.create(overlapped))
                 .isInstanceOf(OverlapException.class);

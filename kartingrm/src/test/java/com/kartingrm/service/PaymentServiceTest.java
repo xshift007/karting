@@ -39,7 +39,7 @@ class PaymentServiceTest {
         Reservation r = resSvc.createReservation(
                 new ReservationRequestDTO("P1", c.getId(),
                         LocalDate.now().plusDays(1),
-                        LocalTime.of(9,0), LocalTime.of(9,30),
+                        LocalTime.of(15,0), LocalTime.of(15,30),
                         1, RateType.LAP_10));
 
         Payment p = paySvc.pay(new PaymentRequestDTO(r.getId(), "cash"));

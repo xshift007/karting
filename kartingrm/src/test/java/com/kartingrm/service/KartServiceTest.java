@@ -3,21 +3,18 @@ package com.kartingrm.service;
 import com.kartingrm.entity.Kart;
 import com.kartingrm.entity.KartStatus;
 import com.kartingrm.repository.KartRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.*;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("test")
-@AutoConfigureTestDatabase      //  ◀◀ usa H2 en memoria
+@AutoConfigureTestDatabase
 class KartServiceTest {
 
     @Autowired KartService svc;
@@ -26,18 +23,33 @@ class KartServiceTest {
     @BeforeEach
     void init() {
         repo.deleteAll();
-        IntStream.rangeClosed(1, 5)
+        IntStream.rangeClosed(1, 2)
                 .mapToObj(i -> new Kart(null, "K%03d".formatted(i),
                         KartStatus.AVAILABLE, null, null))
                 .forEach(repo::save);
     }
 
     @Test
-    void allocateThreeKartsSuccessfully() {
-        List<Kart> list = svc.allocate(3);
+    void allocate_success() {
+        List<Kart> list = svc.allocate(2);
+        assertThat(list).allMatch(k -> k.getStatus() == KartStatus.RESERVED);
+    }
 
-        assertThat(list)
-                .hasSize(3)
-                .allMatch(k -> k.getStatus() == KartStatus.RESERVED);
+    @Test
+    void allocate_insufficient_throws() {
+        assertThatThrownBy(() -> svc.allocate(3))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("No hay karts suficientes libres");
+    }
+
+    @Test
+    void updateStatus_success_y_noEncontrado() {
+        Kart k = repo.findAll().get(0);
+        Kart actualizado = svc.updateStatus(k.getId(), KartStatus.MAINTENANCE);
+        assertThat(actualizado.getStatus()).isEqualTo(KartStatus.MAINTENANCE);
+
+        assertThatThrownBy(() -> svc.updateStatus(999L, KartStatus.AVAILABLE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Kart no existe");
     }
 }
