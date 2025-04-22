@@ -34,25 +34,19 @@ public class SessionService {
         return sessionRepo.findBySessionDateBetween(monday, monday.plusDays(6));
     }
 
-    public Session create(Session s) {
-        LocalTime start = s.getStartTime(), end = s.getEndTime();
-        DayOfWeek dow = s.getSessionDate().getDayOfWeek();
-
-        LocalTime open = (dow == SATURDAY || dow == SUNDAY || HolidayService.isHoliday(s.getSessionDate()))
-                ? LocalTime.of(10,0)
-                : LocalTime.of(14,0);
-        LocalTime close = LocalTime.of(22,0);
-
-        if (start.isBefore(open) || end.isAfter(close)) {
-            throw new IllegalArgumentException(
-                    "Horario fuera de atención: " + open + "–" + close);
+    public Session create(Session session) {
+        // Solo comprobamos solapamiento al crear una sesión nueva (id == null)
+        if (session.getId() == null) {
+            boolean overlap = sessionRepo.existsOverlap(
+                    session.getSessionDate(),
+                    session.getStartTime(),
+                    session.getEndTime()
+            );
+            if (overlap) {
+                throw new OverlapException("Ya existe una sesión solapada");
+            }
         }
-
-        if (sessionRepo.existsOverlap(s.getSessionDate(), start, end)) {
-            throw new OverlapException("Ya existe una sesión solapada");
-        }
-        return sessionRepo.save(s);
-
+        return sessionRepo.save(session);
     }
 
     @Transactional
