@@ -86,6 +86,17 @@ public class ReservationService {
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
     }
 
+    public Reservation update(Long id, ReservationRequestDTO dto) {
+        Reservation r = findById(id);
+        // lógica similar a create: validaciones de cupo, horario, recalcular precios/descuentos…
+        // luego:
+        r.setParticipants(dto.participants());
+        // … resto de campos …
+        return reservationRepo.save(r);
+    }
+    public void save(Reservation r) { reservationRepo.save(r); }
+
+
 
 }
 

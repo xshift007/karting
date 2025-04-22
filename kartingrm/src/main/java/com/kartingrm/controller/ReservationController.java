@@ -2,6 +2,7 @@ package com.kartingrm.controller;
 
 import com.kartingrm.dto.*;
 import com.kartingrm.entity.Reservation;
+import com.kartingrm.entity.ReservationStatus;
 import com.kartingrm.mapper.ReservationMapper;
 import com.kartingrm.service.ReservationService;
 import jakarta.validation.Valid;
@@ -42,5 +43,22 @@ public class ReservationController {
     public ReservationResponseDTO get(@PathVariable Long id) {
         return reservationMapper.toDto(
                 reservationService.findById(id));
+    }
+
+    // en ReservationController
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelReservation(@PathVariable Long id) {
+        Reservation r = reservationService.findById(id);
+        r.setStatus(ReservationStatus.CANCELLED);
+        reservationService.save(r);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}")
+    public ReservationResponseDTO updateReservation(
+            @PathVariable Long id,
+            @Valid @RequestBody ReservationRequestDTO dto) {
+        Reservation updated = reservationService.update(id, dto);
+        return reservationMapper.toDto(updated);
     }
 }

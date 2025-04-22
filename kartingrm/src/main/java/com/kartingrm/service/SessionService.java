@@ -7,9 +7,13 @@ import com.kartingrm.repository.SessionRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
 
 
 @Service
@@ -30,13 +34,25 @@ public class SessionService {
         return sessionRepo.findBySessionDateBetween(monday, monday.plusDays(6));
     }
 
-    @Transactional
     public Session create(Session s) {
-        if (sessionRepo.existsOverlap(
-                s.getSessionDate(), s.getStartTime(), s.getEndTime())) {
-            throw new OverlapException("La pista ya está ocupada en ese bloque");
+        LocalTime start = s.getStartTime(), end = s.getEndTime();
+        DayOfWeek dow = s.getSessionDate().getDayOfWeek();
+
+        LocalTime open = (dow == SATURDAY || dow == SUNDAY || HolidayService.isHoliday(s.getSessionDate()))
+                ? LocalTime.of(10,0)
+                : LocalTime.of(14,0);
+        LocalTime close = LocalTime.of(22,0);
+
+        if (start.isBefore(open) || end.isAfter(close)) {
+            throw new IllegalArgumentException(
+                    "Horario fuera de atención: " + open + "–" + close);
+        }
+
+        if (sessionRepo.existsOverlap(s.getSessionDate(), start, end)) {
+            throw new OverlapException("Ya existe una sesión solapada");
         }
         return sessionRepo.save(s);
+
     }
 
     @Transactional

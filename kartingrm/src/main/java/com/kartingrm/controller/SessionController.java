@@ -1,10 +1,16 @@
 package com.kartingrm.controller;
 
+import com.kartingrm.dto.SessionDTO;
 import com.kartingrm.entity.Session;
 import com.kartingrm.repository.SessionRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -43,4 +49,18 @@ public class SessionController {
         // return ResponseEntity.ok().body("Session with ID " + id + " deleted successfully.");
     }
     // --- FIN DEL MÉTOD0 AÑADIDO ---
+
+
+    @GetMapping("/availability")
+    public Map<DayOfWeek,List<SessionDTO>> availability(
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
+        var sessions = sessionRepository.findBySessionDateBetween(from, to);
+        return sessions.stream()
+                .map(s -> new SessionDTO(s.getId(), s.getSessionDate(), s.getStartTime(), s.getEndTime()))
+                .collect(Collectors.groupingBy(
+                        dto -> dto.sessionDate().getDayOfWeek(),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+    }
 }
