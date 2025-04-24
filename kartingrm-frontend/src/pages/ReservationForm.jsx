@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
-import { useEffect } from 'react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import dayjs from 'dayjs'
@@ -19,11 +18,13 @@ const schema = yup.object({
   clientId:        yup.number().required('Cliente obligatorio'),
   sessionDate:     yup.date().required('Fecha obligatoria'),
   startTime:       yup.string().required('Hora inicio obligatoria'),
-  endTime:         yup.string()
+  endTime: yup.string()
     .required('Hora fin obligatoria')
-    .test('is-after', 'Fin debe ser después', (val, ctx) =>
-      dayjs(val, 'HH:mm').isAfter(dayjs(ctx.parent.startTime, 'HH:mm'))
-    ),
+    .test('is-after', 'Fin debe ser posterior', function(value) {
+      const { startTime } = this.parent;
+      if (!value || !startTime) return true;
+      return dayjs(value, 'HH:mm').isAfter(dayjs(startTime, 'HH:mm'));
+    }),
   participantsList: yup.array().of(
     yup.object({
       fullName: yup.string().required('Nombre obligatorio'),
@@ -39,7 +40,7 @@ export default function ReservationForm(){
   const [clients, setClients]   = useState([])
   const [sessions, setSessions] = useState([])
 
-  const { control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, formState: { errors, isValid } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
     reValidateMode: 'onChange',
