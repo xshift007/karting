@@ -1,27 +1,42 @@
-import { useEffect,useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Table, TableHead, TableBody, TableRow, TableCell,
+  Paper, Button, Stack
+} from '@mui/material'
 import reservationService from '../services/reservation.service'
-import { Table,TableHead,TableBody,TableRow,TableCell,Paper,
-         Button, Stack } from '@mui/material'
 
 export default function ReservationsList(){
-  const [list,setList]=useState([])
+  const [list, setList] = useState([])
+  const navigate = useNavigate()
 
-  const load=()=>reservationService.list().then(r=>setList(r.data))
-  useEffect(load,[])
+  const load = () =>
+    reservationService.list()
+      .then(r => setList(r.data))
+      .catch(console.error)
 
-  const cancel=id=>reservationService.cancel(id).then(load)
+  useEffect(load, [])
+
+  const cancel = id =>
+    reservationService.cancel(id)
+      .then(load)
+      .catch(err => alert(err.response?.data?.message || err.message))
 
   return (
     <Paper sx={{p:2}}>
       <Stack direction="row" justifyContent="space-between" sx={{mb:2}}>
-        <h3>Reservas</h3>
-        <Button variant="contained" href="/reservations/new">Nueva</Button>
+        <Typography variant="h6">Reservas</Typography>
+        <Button variant="contained"
+          onClick={()=>navigate('/reservations/new')}>
+          Nueva reserva
+        </Button>
       </Stack>
       <Table size="small">
         <TableHead>
           <TableRow>
-            {['Código','Cliente','Fecha','Hora','Participantes','Estado',''].map(h=>
-              <TableCell key={h}>{h}</TableCell>)}
+            {['Código','Cliente','Fecha','Hora','#','Tarifa','Estado',''].map(h=>
+              <TableCell key={h}>{h}</TableCell>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -30,13 +45,18 @@ export default function ReservationsList(){
               <TableCell>{r.reservationCode}</TableCell>
               <TableCell>{r.client.fullName}</TableCell>
               <TableCell>{r.session.sessionDate}</TableCell>
-              <TableCell>{r.session.startTime}</TableCell>
+              <TableCell>
+                {r.session.startTime}-{r.session.endTime}
+              </TableCell>
               <TableCell>{r.participants}</TableCell>
+              <TableCell>{r.rateType}</TableCell>
               <TableCell>{r.status}</TableCell>
               <TableCell>
                 {r.status==='PENDING' &&
-                  <Button size="small" color="error"
-                    onClick={()=>cancel(r.id)}>Cancelar</Button>}
+                  <Button color="error" size="small"
+                    onClick={()=>cancel(r.id)}>
+                    Cancelar
+                  </Button>}
               </TableCell>
             </TableRow>
           ))}

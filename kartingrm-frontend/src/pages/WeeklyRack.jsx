@@ -1,43 +1,56 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { addDays, format } from 'date-fns'
+import {
+  Table, TableHead, TableBody, TableRow, TableCell,
+  Paper, Typography
+} from '@mui/material'
 import sessionService from '../services/session.service'
-import { startOfWeek, addDays, formatISO } from 'date-fns'
-import Table from '@mui/material/Table'
-import TableHead from '@mui/material/TableHead'
-import TableBody from '@mui/material/TableBody'
-import TableRow from '@mui/material/TableRow'
-import TableCell from '@mui/material/TableCell'
-import Paper from '@mui/material/Paper'
-import Typography from '@mui/material/Typography'
 
 export default function WeeklyRack(){
-  const monday = startOfWeek(new Date(), { weekStartsOn:1 })
   const [rack, setRack] = useState({})
+  const monday = new Date()
+  // calcular lunes anterior
+  while (monday.getDay() !== 1) monday.setDate(monday.getDate()-1)
+  const from = format(monday,'yyyy-MM-dd')
+  const to   = format(addDays(monday,6),'yyyy-MM-dd')
 
   useEffect(()=>{
-    sessionService.weekly(formatISO(monday, { representation:'date'}))
-      .then(r => setRack(r.data))
-  }, [])
+    sessionService.weekly(from,to)
+      .then(r=> setRack(r.data))
+      .catch(console.error)
+  },[from,to])
 
   return (
-    <Paper sx={{ p:2 }}>
-      <Typography variant="h5" gutterBottom>Disponibilidad semanal</Typography>
+    <Paper sx={{p:2}}>
+      <Typography variant="h5" gutterBottom>
+        Disponibilidad (semana de {from})
+      </Typography>
       <Table size="small">
         <TableHead>
           <TableRow>
             <TableCell>Hora</TableCell>
             {Array.from({length:7}).map((_,i)=>
-              <TableCell key={i}>{addDays(monday,i).toLocaleDateString('es-CL',{weekday:'short', day:'2-digit'})}</TableCell>)}
+              <TableCell key={i}>
+                {format(addDays(monday,i),'EEE dd')}
+              </TableCell>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
-          {/** para simplificar mostramos cada sesión como bloque individual */}
-          {Object.entries(rack).map(([dow, list])=>(
-            list.map(s => (
-              <TableRow key={s.id}>
-                <TableCell>{s.startTime}-{s.endTime}</TableCell>
-                <TableCell colSpan={7}>{/* could shade by dow, omitting for brev. */}</TableCell>
-              </TableRow>
-            ))
+          {/** Agrupamos por hora de inicio */}
+          {Object.values(rack).flat()
+            .sort((a,b)=> a.startTime.localeCompare(b.startTime))
+            .map(s=>(
+            <TableRow key={s.id}>
+              <TableCell>{s.startTime}-{s.endTime}</TableCell>
+              {Array.from({length:7}).map((_,i)=>{
+                const day = format(addDays(monday,i),'yyyy-MM-dd')
+                const has = rack[day]?.some(x=>x.id===s.id)
+                return <TableCell key={i}>
+                  {has? 'Disponible': ''}
+                </TableCell>
+              })}
+            </TableRow>
           ))}
         </TableBody>
       </Table>

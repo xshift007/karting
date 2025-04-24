@@ -1,36 +1,49 @@
 import { useState } from 'react'
 import { BarChart } from '@mui/x-charts/BarChart'
-import { Stack, Button, Paper } from '@mui/material'
+import { Stack, Button, Paper, Typography } from '@mui/material'
 import reportService from '../services/report.service'
-import { formatISO } from 'date-fns'
+import dayjs from 'dayjs'
 
 export default function ReportCharts(){
-  const [dataRate,setRate]=useState([])
-  const [dataGroup,setGroup]=useState([])
+  const [byRate,  setByRate]  = useState([])
+  const [byGroup, setByGroup] = useState([])
 
-  const load=()=>{
-    const from=formatISO(new Date('2025-01-01'),{representation:'date'})
-    const to  =formatISO(new Date('2025-12-31'),{representation:'date'})
-    reportService.byRate(from,to).then(r=>setRate(r.data))
-    reportService.byGroup(from,to).then(r=>setGroup(r.data))
+  const load = ()=>{
+    const from = dayjs().startOf('year').format('YYYY-MM-DD')
+    const to   = dayjs().endOf('year').format('YYYY-MM-DD')
+    reportService.byRate(from,to).then(r=>setByRate(r.data))
+    reportService.byGroup(from,to).then(r=>setByGroup(r.data))
   }
 
   return (
-    <Paper sx={{p:2}}>
-      <Stack spacing={2}>
-        <Button variant="contained" onClick={load}>Cargar datos 2025</Button>
+    <Paper sx={{p:2, maxWidth:600, mx:'auto'}}>
+      <Typography variant="h6" gutterBottom>Reportes 2025</Typography>
+      <Stack spacing={2} alignItems="center">
+        <Button variant="contained" onClick={load}>
+          Cargar datos
+        </Button>
 
-        {dataRate.length>0 &&
-          <BarChart width={500} height={300}
-            xAxis={[{ scaleType:'band', data:dataRate.map(d=>d.rate) }]}
-            series={[{ data:dataRate.map(d=>d.total) }]}
-          />}
+        {byRate.length>0 && (
+          <>
+            <Typography>Ingresos por Tarifa</Typography>
+            <BarChart
+              width={400} height={250}
+              xAxis={[{ scaleType:'band', data:byRate.map(d=>d.rate) }]}
+              series={[{ data:byRate.map(d=>d.total) }]}
+            />
+          </>
+        )}
 
-        {dataGroup.length>0 &&
-          <BarChart width={500} height={300}
-            xAxis={[{ scaleType:'band', data:dataGroup.map(d=>d.range) }]}
-            series={[{ data:dataGroup.map(d=>d.total) }]}
-          />}
+        {byGroup.length>0 && (
+          <>
+            <Typography>Ingresos por Grupo</Typography>
+            <BarChart
+              width={400} height={250}
+              xAxis={[{ scaleType:'band', data:byGroup.map(d=>d.range) }]}
+              series={[{ data:byGroup.map(d=>d.total) }]}
+            />
+          </>
+        )}
       </Stack>
     </Paper>
   )
