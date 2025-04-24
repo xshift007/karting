@@ -1,26 +1,37 @@
 package com.kartingrm.service;
 
-import com.kartingrm.entity.RateType;
+import com.kartingrm.entity.*;
 import com.kartingrm.service.pricing.TariffService;
 import org.junit.jupiter.api.Test;
-import java.time.*;
-import static org.assertj.core.api.Assertions.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase
 class TariffServiceTest {
 
+    @Autowired TariffService svc;
+
     @Test
-    void forDate_normal_y_finesdeSemana_y_feriado() {
-        LocalDate lunes = LocalDate.of(2025,4,21); // lunes
-        assertThat(TariffService.forDate(lunes, RateType.LAP_10))
-                .isEqualTo(TariffService.LAP_10);
+    void forDate_normal_weekend_holiday() {
 
-        LocalDate sabado = LocalDate.of(2025,4,19);
-        assertThat(TariffService.forDate(sabado, RateType.LAP_10))
-                .isEqualTo(TariffService.WEEKEND);
+        LocalDate monday   = LocalDate.of(2025,4,21);
+        TariffConfig cfg1  = svc.forDate(monday, RateType.LAP_10);
+        assertThat(cfg1.getRate()).isEqualTo(RateType.LAP_10);
 
-        // 18/09 es feriado según HolidayService
-        LocalDate patrias = LocalDate.of(2025,9,18);
-        assertThat(TariffService.forDate(patrias, RateType.LAP_10))
-                .isEqualTo(TariffService.HOLIDAY);
+        LocalDate saturday = LocalDate.of(2025,4,19);
+        TariffConfig cfg2  = svc.forDate(saturday, RateType.LAP_10);
+        assertThat(cfg2.getRate()).isEqualTo(RateType.WEEKEND);
+
+        LocalDate patrias  = LocalDate.of(2025,9,18);           // feriado
+        TariffConfig cfg3  = svc.forDate(patrias, RateType.LAP_10);
+        assertThat(cfg3.getRate()).isEqualTo(RateType.HOLIDAY);
     }
 }
