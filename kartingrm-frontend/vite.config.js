@@ -5,15 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // necesario para que el history fallback de React Router funcione
+    // Para que History API fallback redirija al index.html
     historyApiFallback: true
   },
   build: {
     rollupOptions: {
       output: {
-        // separa un bundle ‘vendor’ con React y MUI
+        // Crea un bundle vendor separado con React y MUI
         manualChunks: {
-          vendor: ['react', 'react-dom', '@mui/material']
+          vendor: ['react', 'react-dom', '@mui/material', '@mui/icons-material']
         }
       }
     }
