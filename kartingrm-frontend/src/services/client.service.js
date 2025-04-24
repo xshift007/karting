@@ -1,14 +1,8 @@
 import http from '../http-common'
 
-/**
- * Devuelve un cliente por ID
- * @param {number|string} id
- */
-const get      = id   => http.get(`/clients/${id}`)
+const getAll = ()            => http.get('/clients')
+const get    = id            => http.get(`/clients/${id}`)
+const create = payload       => http.post('/clients', payload).then(r => r.data)
+const update = (id,payload)  => http.put(`/clients/${id}`, payload).then(r => r.data)
 
-/**
- * Devuelve la lista completa de clientes
- */
-const getAll   = ()   => http.get('/clients')
-
-export default { get, getAll }
+export default { getAll, get, create, update }

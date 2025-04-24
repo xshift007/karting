@@ -1,13 +1,10 @@
 import http from '../http-common'
 
-/**
- * Obtiene la disponibilidad de sesiones entre dos fechas
- * @param {string} from  — fecha ISO 'yyyy-MM-dd'
- * @param {string} to    — fecha ISO 'yyyy-MM-dd'
- */
-const weekly = (from, to) =>
-  http.get('/sessions/availability', {
-    params: { from, to }
-  })
+const weekly = (from, to)    =>
+  http.get('/sessions/availability', { params:{ from, to } })
+const getAll = ()            => http.get('/sessions')
+const create = payload       => http.post('/sessions', payload).then(r => r.data)
+const update = (id, payload) => http.put(`/sessions/${id}`, payload).then(r => r.data)
+const remove = id            => http.delete(`/sessions/${id}`)
 
-export default { weekly }
+export default { weekly, getAll, create, update, delete: remove }
