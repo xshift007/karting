@@ -1,13 +1,19 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import App from './App'
-import './index.css'
+// main.jsx
+import { Suspense, lazy } from 'react';
+const Home         = lazy(()=>import('./pages/Home'));
+const WeeklyRack   = lazy(()=>import('./pages/WeeklyRack'));
+…
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App/>
-    </BrowserRouter>
-  </React.StrictMode>
-)
+<BrowserRouter>
+  <Suspense fallback={<CircularProgress/>}>
+    <Routes>
+      <Route path="/" element={<Navigate to="/home" replace />}/>
+      <Route element={<Layout/>}>        {/* contenedor con Navbar  */}
+        <Route path="home"          element={<Home/>}/>
+        <Route path="rack"          element={<WeeklyRack/>}/>
+        …
+      </Route>
+      <Route path="*" element={<NotFound/>}/>
+    </Routes>
+  </Suspense>
+</BrowserRouter>

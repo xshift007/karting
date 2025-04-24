@@ -1,6 +1,13 @@
 import http from '../http-common'
 
-const weekly = monday => http.get('/sessions', { params:{
-  from: monday, to: new Date(monday).setDate(new Date(monday).getDate()+6)
-}})
+/**
+ * Obtiene la disponibilidad de sesiones entre dos fechas
+ * @param {string} from  — fecha ISO 'yyyy-MM-dd'
+ * @param {string} to    — fecha ISO 'yyyy-MM-dd'
+ */
+const weekly = (from, to) =>
+  http.get('/sessions/availability', {
+    params: { from, to }
+  })
+
 export default { weekly }
