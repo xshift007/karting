@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import CssBaseline from '@mui/material/CssBaseline'
@@ -18,7 +19,8 @@ export default function App() {
     <>
       <CssBaseline />
       <Navbar />
-      <Container sx={{ mt: 4 }}>
+      {/* maxWidth="xl" para que ocupe todo el ancho disponible */}
+      <Container maxWidth="xl" sx={{ my: 4 }}>
         <Suspense
           fallback={
             <CircularProgress

@@ -15,7 +15,10 @@ export default function ReservationsList(){
       .then(r => setList(r.data))
       .catch(console.error)
 
-  useEffect(load, [])
+  useEffect(() => {
+    load()
+  }
+)
 
   const cancel = id =>
     reservationService.cancel(id)

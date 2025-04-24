@@ -2,14 +2,27 @@
 import axios from 'axios'
 
 /**
- *   Puedes definir VITE_API_BASE=http://host:port/api
- *   (se usa en despliegue) o bien VITE_BACKEND_SERVER / VITE_BACKEND_PORT
+ *   ▸ En desarrollo => sólo '/api' para que el proxy de Vite actúe
+ *   ▸ En producción => VITE_API_BASE debe apuntar al backend público
  */
-const baseURL =
-  import.meta.env.VITE_API_BASE ??
-  `http://${import.meta.env.VITE_BACKEND_SERVER}:${import.meta.env.VITE_BACKEND_PORT}/api`
+const isDev = import.meta.env.DEV
+const baseURL = isDev
+  ? '/api'
+  : import.meta.env.VITE_API_BASE || '/api'
 
-export default axios.create({
+const http = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' }
 })
+
+// Interceptor global para mostrar errores sin romper toda la app
+http.interceptors.response.use(
+  response => response,
+  error => {
+    const msg = error.response?.data?.message || error.message
+    window.dispatchEvent(new CustomEvent('httpError', { detail: msg }))
+    return Promise.reject(error)
+  }
+)
+
+export default http

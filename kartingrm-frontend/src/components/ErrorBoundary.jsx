@@ -1,3 +1,4 @@
+// src/components/ErrorBoundary.jsx
 import React from 'react'
 import { Container, Typography, Button } from '@mui/material'
 
@@ -12,8 +13,19 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // puedes integrarlo con un servicio de logging externo
     console.error('Error capturado por ErrorBoundary:', error, info)
+  }
+
+  componentDidMount() {
+    window.addEventListener('httpError', this.handleHttpError)
+  }
+  componentWillUnmount() {
+    window.removeEventListener('httpError', this.handleHttpError)
+  }
+
+  handleHttpError = (e) => {
+    // Aquí podrías llamar a un Snackbar de MUI
+    alert(e.detail)
   }
 
   handleReload = () => {
