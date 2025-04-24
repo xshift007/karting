@@ -1,60 +1,60 @@
 package com.kartingrm.entity;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
 @Table(name = "reservations")
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 public class Reservation {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "reservation_code", nullable = false, unique = true)
     private String reservationCode;
 
-    @ManyToOne
-    @JoinColumn(name = "client_id", nullable = false)
+    @ManyToOne @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "session_id")
     private Session session;
 
-
-    // Duración de la reserva en minutos (generalmente igual a la duración de la sesión)
+    /** Duración total (minutos) */
     @Column(nullable = false)
     private Integer duration;
 
-    // Número de participantes en la reserva (para aplicar descuentos por grupo)
+    /** Cantidad de participantes */
     @Column(nullable = false)
     private Integer participants;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "rate_type", nullable = false)
-    private RateType rateType; // LAP_10, LAP_15, LAP_20, WEEKEND, HOLIDAY, BIRTHDAY
+    private RateType rateType;
 
     @Column(name = "base_price", nullable = false)
     private Double basePrice;
 
-    // Descuento global calculado sobre el basePrice
     @Column(name = "discount_percentage")
     private Double discountPercentage = 0.0;
 
     @Column(name = "final_price", nullable = false)
     private Double finalPrice;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING) @Column(nullable = false)
     private ReservationStatus status = ReservationStatus.PENDING;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    /* >>> NUEVO: lista de integrantes */
+    @OneToMany(mappedBy = "reservation",
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Participant> participantsList = new ArrayList<>();
 }

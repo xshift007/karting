@@ -1,21 +1,18 @@
 package com.kartingrm.service;
 
+import com.kartingrm.repository.HolidayRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.MonthDay;
-import java.util.Set;
-
 
 @Service
+@RequiredArgsConstructor
 public class HolidayService {
-    private static final Set<MonthDay> FIXED_HOLIDAYS = Set.of(
-            MonthDay.of(9, 18),   // fiestas patrias
-            MonthDay.of(12, 25)   // navidad
-            // … otros fijos
-    );
 
-    public static boolean isHoliday(LocalDate d) {
-        return FIXED_HOLIDAYS.contains(MonthDay.from(d));
+    private final HolidayRepository holidays;
+
+    public boolean isHoliday(LocalDate date) {
+        return holidays.existsByDate(date);
     }
 }
