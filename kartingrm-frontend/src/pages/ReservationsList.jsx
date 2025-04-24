@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Table, TableHead, TableBody, TableRow, TableCell,
-  Paper, Button, Stack
+  Paper, Button, Stack, Typography           //  🆕 import
 } from '@mui/material'
 import reservationService from '../services/reservation.service'
 

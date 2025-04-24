@@ -1,9 +1,15 @@
+// src/http-common.js
 import axios from 'axios'
 
-const server = import.meta.env.VITE_BACKEND_SERVER
-const port   = import.meta.env.VITE_BACKEND_PORT
+/**
+ *   Puedes definir VITE_API_BASE=http://host:port/api
+ *   (se usa en despliegue) o bien VITE_BACKEND_SERVER / VITE_BACKEND_PORT
+ */
+const baseURL =
+  import.meta.env.VITE_API_BASE ??
+  `http://${import.meta.env.VITE_BACKEND_SERVER}:${import.meta.env.VITE_BACKEND_PORT}/api`
 
 export default axios.create({
-  baseURL: `http://${server}:${port}/api`,
-  headers: { 'Content-Type':'application/json' }
+  baseURL,
+  headers: { 'Content-Type': 'application/json' }
 })
