@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
+import { useEffect } from 'react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import dayjs from 'dayjs'
@@ -40,6 +41,8 @@ export default function ReservationForm(){
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       reservationCode: '',
       clientId:        '',
@@ -156,7 +159,9 @@ export default function ReservationForm(){
 
           <Stack direction="row" spacing={2} justifyContent="flex-end">
             <Button onClick={()=>navigate(-1)}>Cancelar</Button>
-            <Button type="submit" variant="contained">Guardar</Button>
+            <Button type="submit" variant="contained" disabled={!isValid}>
+              Guardar
+            </Button>
           </Stack>
         </Stack>
       </form>
