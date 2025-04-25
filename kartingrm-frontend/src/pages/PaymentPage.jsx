@@ -9,10 +9,11 @@ export default function PaymentPage() {
   const navigate          = useNavigate()
 
   const handlePay = () => {
-    paymentService.pay({ reservationId: Number(reservationId), method:'cash' })
+    paymentService.pay({ reservationId, method:'cash' })
       .then(res => {
-        setPaid(true)
-        return paymentService.receipt(res.data.id)
+        setPaid(true);
+        const paymentId = res.data.id;
+        return paymentService.receipt(paymentId);
       })
       .then(response => {
         const blob = new Blob([response.data], { type:'application/pdf' })

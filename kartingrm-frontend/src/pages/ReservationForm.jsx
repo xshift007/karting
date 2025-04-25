@@ -9,6 +9,7 @@ import {
   TextField, Button, Stack, Paper, Typography, MenuItem, IconButton
 } from '@mui/material'
 import { AddCircle, RemoveCircle } from '@mui/icons-material'
+
 import reservationService from '../services/reservation.service'
 import clientService      from '../services/client.service'
 import sessionService     from '../services/session.service'
@@ -19,13 +20,13 @@ const schema = yup.object({
   reservationCode: yup.string().required(),
   clientId:        yup.number().required('Cliente obligatorio'),
   sessionDate:     yup.date().required('Fecha obligatoria'),
-  startTime:       yup.string().required('Hora inicio obligatoria'),
-  endTime:         yup.string()
+  startTime: yup.string().required('Hora inicio obligatoria'),
+  endTime:   yup.string()
     .required('Hora fin obligatoria')
     .test('is-after','Fin debe ser posterior', function(value){
       const { startTime } = this.parent
       if (!value || !startTime) return true
-      return dayjs(value,'HH:mm').isAfter(dayjs(startTime,'HH:mm'))
+      return value > startTime
     }),
   participantsList: yup.array().of(
     yup.object({

@@ -1,6 +1,7 @@
 package com.kartingrm.controller;
 
 import com.kartingrm.dto.PaymentRequestDTO;
+import com.kartingrm.dto.PaymentResponseDTO;
 import com.kartingrm.entity.Payment;
 import com.kartingrm.repository.PaymentRepository;
 import com.kartingrm.service.PaymentService;
@@ -8,8 +9,10 @@ import com.kartingrm.service.PdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
 
 import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
 import static org.springframework.http.MediaType.APPLICATION_PDF;
@@ -22,10 +25,14 @@ public class PaymentController {
     private final PaymentService svc;
     private final PaymentRepository paymentRepository;
     private final PdfService pdfService;
+    private final TransactionalOperator transactionalOperator;
 
     @PostMapping
-    public ResponseEntity<Payment> pay(@Valid @RequestBody PaymentRequestDTO dto) {
-        return ResponseEntity.ok(svc.pay(dto));
+    public ResponseEntity<PaymentResponseDTO> pay(
+            @Valid @RequestBody PaymentRequestDTO dto) {
+        Payment payment = svc.pay(dto);
+        // sólo devolvemos el id, no todo el objeto
+        return ResponseEntity.ok(new PaymentResponseDTO(payment.getId()));
     }
 
     @GetMapping("/{id}/receipt")
