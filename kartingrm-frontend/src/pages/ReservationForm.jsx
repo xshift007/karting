@@ -14,7 +14,7 @@ import clientService      from '../services/client.service'
 import sessionService     from '../services/session.service'
 import { computePrice }   from '../helpers'
 
-// Schema de validación
+/* ---------------- esquema ---------------- */
 const schema = yup.object({
   reservationCode: yup.string().required(),
   clientId:        yup.number().required('Cliente obligatorio'),
@@ -34,98 +34,93 @@ const schema = yup.object({
       birthday: yup.boolean()
     })
   ).min(1,'Al menos 1 participante').max(15,'Máximo 15 participantes'),
-  rateType:       yup.string().required()
+  rateType: yup.string().required()
 })
 
 export default function ReservationForm(){
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [clients, setClients]   = useState([])
-  const [sessions, setSessions] = useState([])
-  const [counts, setCounts]     = useState({})
+  const navigate  = useNavigate()
+  const location  = useLocation()
 
-  const { control, setValue, handleSubmit, watch, formState:{ errors, isValid } } =
-    useForm({
-      resolver: yupResolver(schema),
-      mode: 'onChange',
-      defaultValues: {
-        reservationCode: '',
-        clientId:        '',
-        sessionDate:     dayjs().format('YYYY-MM-DD'),
-        startTime:       '',
-        endTime:         '',
-        participantsList:[{ fullName:'', email:'', birthday:false }],
-        rateType:        'LAP_10'
-      }
-    })
+  const [clients,   setClients]   = useState([])
+  const [sessions,  setSessions]  = useState([])          // ← lista ya aplanada
+
+  /* ---------------- form ---------------- */
+  const { control, setValue, handleSubmit, watch,
+          formState:{ errors, isValid } } = useForm({
+    resolver: yupResolver(schema),
+    mode: 'onChange',
+    defaultValues: {
+      reservationCode: '',
+      clientId:        '',
+      sessionDate:     dayjs().format('YYYY-MM-DD'),
+      startTime:       '',
+      endTime:         '',
+      participantsList:[{ fullName:'', email:'', birthday:false }],
+      rateType:        'LAP_10'
+    }
+  })
 
   const { fields, append, remove } = useFieldArray({ control, name:'participantsList' })
   const sessionDate = watch('sessionDate')
   const startTime   = watch('startTime')
-  const endTime     = watch('endTime')
 
-  // 1) Generar código al montar
-  useEffect(()=>{
+  /* 1) Código automático */
+  useEffect(()=> {
     setValue('reservationCode','R'+nanoid(6).toUpperCase())
   },[setValue])
 
-  // 2) Parámetros URL para precarga
-  useEffect(()=>{
+  /* 2) precarga vía URL */
+  useEffect(()=> {
     const p = new URLSearchParams(location.search)
-    if(p.get('d')) setValue('sessionDate', p.get('d'))
-    if(p.get('s')) setValue('startTime'  , p.get('s'))
-    if(p.get('e')) setValue('endTime'    , p.get('e'))
-  },[location.search,setValue])
+    if (p.get('d')) setValue('sessionDate', p.get('d'))
+    if (p.get('s')) setValue('startTime'  , p.get('s'))
+    if (p.get('e')) setValue('endTime'    , p.get('e'))
+  },[location.search, setValue])
 
-  // 3) Cargar clientes
-  useEffect(() => {
-        const controller = new AbortController()
-        clientService.getAll({ signal: controller.signal })
-          .then(r => setClients(r.data))
-          .catch(err => {
-            if (!controller.signal.aborted) console.error(err)
-          })
-        return () => controller.abort()
-      }, [])
+  /* 3) clientes */
+  useEffect(()=> {
+    const controller = new AbortController()
+    clientService.getAll({ signal: controller.signal })
+      .then(r => setClients(r.data))
+      .catch(err => { if (!controller.signal.aborted) console.error(err) })
+    return () => controller.abort()
+  },[])
 
-  // 4) Cargar sesiones y contar reservas
-  useEffect(() => {
-        if (!sessionDate) return
-        const controller = new AbortController()
-        sessionService.weekly(sessionDate, sessionDate, { signal: controller.signal })
-          .then(r => {
-            setSessions(r.data)
-            const map = {}
-            r.data.forEach(s => (map[s.id] = s.participantsCount || 0))
-            setCounts(map)
-          })
-          .catch(err => {
-            if (!controller.signal.aborted) console.error(err)
-          })
-        return () => controller.abort()
-      }, [sessionDate])
+  /* 4) sesiones disponibles (con cupos) */
+  useEffect(()=> {
+    if (!sessionDate) return
+    const controller = new AbortController()
+    sessionService.weekly(sessionDate, sessionDate, { signal: controller.signal })
+      .then(r => {
+        // r.data = { MONDAY:[…], … }  ⇒  aplanamos
+        const list = Object.values(r.data).flat()
+        setSessions(list)
+      })
+      .catch(err => { if (!controller.signal.aborted) console.error(err) })
+    return () => controller.abort()
+  },[sessionDate])
 
-  // 5) Filtrar slots que caben (cupo actual + nuevos ≤ capacidad)
-  const available = useMemo(()=>{
-    return sessions.filter(s=>
-      (counts[s.id]||0) + fields.length <= s.capacity
-    )
-  },[sessions,counts,fields.length])
+  /* 5) slots que aún tienen capacidad */
+  const available = useMemo(() =>
+    sessions.filter(s =>
+      (s.participantsCount + fields.length) <= s.capacity
+    ), [sessions, fields.length])
 
-  // 6) Envío
-  const onSubmit = data=>{
+  /* 6) envío */
+  const onSubmit = data => {
     reservationService.create(data)
-      .then(res=> navigate(`/payments/${res.id}`, { replace:true }))
-      .catch(e=> alert(e.response?.data?.message||e.message))
+      .then(res => navigate(`/payments/${res.id}`, { replace:true }))
+      .catch(e  => alert(e.response?.data?.message || e.message))
   }
 
-  // 7) Resumen en tiempo real
+  /* 7) resumen dinámico */
   const summary = computePrice({
-    rateType: watch('rateType'),
-    participants: fields.length,
-    birthdayCount: fields.filter(f=>f.birthday).length
+    rateType:       watch('rateType'),
+    participants:   fields.length,
+    birthdayCount:  fields.filter(f => f.birthday).length
   })
 
+  /* ---------------- render ---------------- */
   return (
     <Paper sx={{p:3, maxWidth:600, mx:'auto'}}>
       <Typography variant="h5" gutterBottom>Crear Reserva</Typography>
@@ -133,18 +128,18 @@ export default function ReservationForm(){
         <Stack spacing={2}>
 
           <Controller name="clientId" control={control}
-            render={({ field })=>
+            render={({ field }) =>
               <TextField {...field} select label="Cliente"
                 error={!!errors.clientId}
                 helperText={errors.clientId?.message}>
-                {clients.map(c=>
+                {clients.map(c =>
                   <MenuItem key={c.id} value={c.id}>{c.fullName}</MenuItem>
                 )}
               </TextField>}
           />
 
           <Controller name="sessionDate" control={control}
-            render={({ field })=>
+            render={({ field }) =>
               <TextField {...field} type="date" label="Fecha"
                 InputLabelProps={{shrink:true}}
                 error={!!errors.sessionDate}
@@ -152,83 +147,90 @@ export default function ReservationForm(){
             }
           />
 
-          <Controller name="startTime" control={control}
-            render={({ field })=>
-              <TextField {...field} select label="Hora inicio"
-                InputLabelProps={{shrink:true}}
+          <Controller
+            name="startTime"
+            control={control}
+            render={({ field }) =>
+              <TextField
+                {...field}
+                type="time"
+                label="Hora inicio"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step: 300 }}            // paso de 5 minutos
                 error={!!errors.startTime}
-                helperText={errors.startTime?.message}>
-                {available.map(s=>
-                  <MenuItem key={s.id} value={s.startTime}>
-                    {s.startTime}
-                  </MenuItem>
-                )}
-              </TextField>}
+                helperText={errors.startTime?.message}
+                onChange={e => {
+                  field.onChange(e)
+                  // al cambiar hora de inicio, resetea la hora fin
+                  setValue('endTime', '')
+                }}
+              />
+            }
           />
 
-          <Controller name="endTime" control={control}
-            render={({ field })=>
-              <TextField {...field} select label="Hora fin"
-                InputLabelProps={{shrink:true}}
-                error={!!errors.endTime}
-                helperText={errors.endTime?.message}>
-                {available
-                  .filter(s=>s.startTime===startTime)
-                  .map(s=>
-                    <MenuItem key={s.id} value={s.endTime}>
-                      {s.endTime}
-                    </MenuItem>
-                  )}
-              </TextField>}
+
+          <Controller
+            name="endTime"
+            control={control}
+            render={({ field }) => {
+              // construye lista de slots posteriores al startTime
+              const endings = available
+                .filter(s => s.startTime === startTime)
+                .map(s => s.endTime)
+                .filter((v,i,a) => a.indexOf(v) === i);  // quita duplicados          
+
+              return (
+                <TextField
+                  {...field}
+                  type="time"
+                  label="Hora fin"
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ step: 300, min: startTime }}
+                  error={!!errors.endTime}
+                  helperText={errors.endTime?.message}
+                />
+              )
+            }}
           />
 
-          <Controller name="rateType" control={control}
-            render={({ field })=>
-              <TextField {...field} select label="Tarifa">
-                {['LAP_10','LAP_15','LAP_20','WEEKEND','HOLIDAY','BIRTHDAY']
-                  .map(r=>
-                    <MenuItem key={r} value={r}>
-                      {r.replace('_',' ')}
-                    </MenuItem>
-                  )}
-              </TextField>}
-          />
-
+          {/* -------- participantes -------- */}
           <Typography variant="h6">Participantes</Typography>
-          {fields.map((item,idx)=>(
+          {fields.map((item, idx) => (
             <Stack key={item.id} direction="row" spacing={1} alignItems="center">
               <Controller name={`participantsList.${idx}.fullName`} control={control}
-                render={({ field })=>
+                render={({ field }) =>
                   <TextField {...field} label="Nombre"
                     error={!!errors.participantsList?.[idx]?.fullName}
                     helperText={errors.participantsList?.[idx]?.fullName?.message}/>
                 }
               />
               <Controller name={`participantsList.${idx}.email`} control={control}
-                render={({ field })=>
+                render={({ field }) =>
                   <TextField {...field} label="Email"
                     error={!!errors.participantsList?.[idx]?.email}
                     helperText={errors.participantsList?.[idx]?.email?.message}/>
                 }
               />
               <Controller name={`participantsList.${idx}.birthday`} control={control}
-                render={({ field })=>
+                render={({ field }) =>
                   <TextField {...field} select label="Cumple">
                     <MenuItem value={false}>No</MenuItem>
                     <MenuItem value={true}>Sí</MenuItem>
                   </TextField>}
               />
-              <IconButton onClick={()=>remove(idx)} disabled={fields.length===1}>
+              <IconButton onClick={() => remove(idx)}
+                disabled={fields.length === 1}>
                 <RemoveCircle/>
               </IconButton>
             </Stack>
           ))}
-          <Button startIcon={<AddCircle/>}
-            onClick={()=>append({ fullName:'', email:'', birthday:false })}>
+
+          <Button startIcon={<AddCircle />}
+            onClick={() => append({ fullName:'', email:'', birthday:false })}>
             Agregar participante
           </Button>
 
-          {/* Resumen debajo */}
+          {/* -------- resumen -------- */}
           <Paper variant="outlined" sx={{p:2}}>
             <Typography variant="subtitle1">Resumen</Typography>
             <Typography>Participantes: {fields.length}</Typography>
@@ -238,7 +240,7 @@ export default function ReservationForm(){
           </Paper>
 
           <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button onClick={()=>navigate(-1)}>Cancelar</Button>
+            <Button onClick={() => navigate(-1)}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={!isValid}>
               Guardar
             </Button>
