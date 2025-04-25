@@ -18,6 +18,7 @@ export default function PaymentPage() {
         const blob = new Blob([response.data], { type:'application/pdf' })
         const url  = window.URL.createObjectURL(blob)
         window.open(url,'_blank')
+        URL.revokeObjectURL(url)
       })
       .catch(e => alert(e.response?.data?.message||e.message))
   }

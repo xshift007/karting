@@ -78,22 +78,32 @@ export default function ReservationForm(){
   },[location.search,setValue])
 
   // 3) Cargar clientes
-  useEffect(()=>{
-    clientService.getAll().then(r=>setClients(r.data))
-  },[])
+  useEffect(() => {
+        const controller = new AbortController()
+        clientService.getAll({ signal: controller.signal })
+          .then(r => setClients(r.data))
+          .catch(err => {
+            if (!controller.signal.aborted) console.error(err)
+          })
+        return () => controller.abort()
+      }, [])
 
   // 4) Cargar sesiones y contar reservas
-  useEffect(()=>{
-    if(!sessionDate) return
-    sessionService.weekly(sessionDate,sessionDate)
-      .then(r=>{
-        setSessions(r.data)
-        // aquí asumimos que `r.data` trae un campo `participantsCount`
-        const m = {}
-        r.data.forEach(s=> m[s.id]=s.participantsCount||0)
-        setCounts(m)
-      })
-  },[sessionDate])
+  useEffect(() => {
+        if (!sessionDate) return
+        const controller = new AbortController()
+        sessionService.weekly(sessionDate, sessionDate, { signal: controller.signal })
+          .then(r => {
+            setSessions(r.data)
+            const map = {}
+            r.data.forEach(s => (map[s.id] = s.participantsCount || 0))
+            setCounts(map)
+          })
+          .catch(err => {
+            if (!controller.signal.aborted) console.error(err)
+          })
+        return () => controller.abort()
+      }, [sessionDate])
 
   // 5) Filtrar slots que caben (cupo actual + nuevos ≤ capacidad)
   const available = useMemo(()=>{
