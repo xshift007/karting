@@ -19,9 +19,14 @@ export default function ReportCharts(){
     <Paper sx={{p:2, maxWidth:600, mx:'auto'}}>
       <Typography variant="h6" gutterBottom>Reportes 2025</Typography>
       <Stack spacing={2} alignItems="center">
-        <Button variant="contained" onClick={load}>
-          Cargar datos
-        </Button>
+      
+      <Stack direction="row" spacing={2}>
+         <Button variant="contained" onClick={load}>Cargar datos</Button>
+         <Button variant="outlined" disabled={!byRate.length}
+           onClick={()=>window.open('/api/reports/by-rate/csv?from='+from+'&to='+to)}>
+           Exportar CSV
+         </Button>
+      </Stack>
 
         {byRate.length>0 && (
           <>

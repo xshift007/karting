@@ -14,6 +14,8 @@ const ClientsCrud      = lazy(() => import('./pages/ClientsCrud'))
 const SessionsCrud     = lazy(() => import('./pages/SessionsCrud'))
 const PaymentPage      = lazy(() => import('./pages/PaymentPage'))
 const NotFound         = lazy(() => import('./pages/NotFound'))
+const TariffsCrud      = lazy(()=> import('./pages/TariffsCrud'))
+const WeeklyRackAdmin  = lazy(()=> import('./pages/WeeklyRackAdmin'))
 
 export default function App() {
   return (
@@ -35,6 +37,8 @@ export default function App() {
             <Route path="/sessions" element={<SessionsCrud />} />
             <Route path="/reports" element={<ReportCharts />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/tariffs" element={<TariffsCrud/>}/>
+            <Route path="/rack-admin" element={<WeeklyRackAdmin/>}/>
           </Routes>
         </Suspense>
       </Container>

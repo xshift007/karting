@@ -4,14 +4,13 @@ import com.kartingrm.dto.ReservationRequestDTO;
 import com.kartingrm.dto.ReservationRequestDTO.ParticipantDTO;
 import com.kartingrm.entity.*;
 import com.kartingrm.repository.ReservationRepository;
+import com.kartingrm.service.mail.MailService;                // ← NUEVO
 import com.kartingrm.service.pricing.DiscountService;
 import com.kartingrm.service.pricing.TariffService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.time.MonthDay;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,43 +24,45 @@ public class ReservationService {
     private final ClientService         clientService;
     private final DiscountService       discService;
     private final TariffService         tariffService;
+    private final MailService           mailService;        // ← NUEVO
 
+    /* --------------------------------------------------------------------- */
     public Reservation createReservation(ReservationRequestDTO dto) {
 
         Client client = clientService.get(dto.clientId());
 
-        // 1) Crear la sesión (valida solapamiento internamente)
+        // 1) Crear la sesión (valida solapamiento internamente)
         Session session = sessionService.create(
                 new Session(null, dto.sessionDate(),
                         dto.startTime(), dto.endTime(), 15));
 
-        // 2) Capacidad
+        // 2) Capacidad
         int ocupados = reservationRepo.participantsInSession(session.getId());
         int totalPersons = dto.participantsList().size();
         if (ocupados + totalPersons > session.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
 
-        // 3) Tarifa base y minutos
+        // 3) Tarifa base y minutos
         TariffConfig cfg = tariffService.forDate(dto.sessionDate(), dto.rateType());
         double base  = cfg.getPrice();
         int minutes  = cfg.getMinutes();
 
-        // 4) Descuentos
+        // 4) Descuentos
         double dGroup = discService.groupDiscount(totalPersons);
         double dFreq  = discService.frequentDiscount(
                 clientService.getTotalVisitsThisMonth(client));
         int birthdayPeople = (int) dto.participantsList().stream()
                 .filter(ParticipantDTO::birthday).count();
-        int maxAllowed = totalPersons<=5?1 : totalPersons<=10?2 : 0;
+        int maxAllowed = totalPersons<=5 ? 1 : totalPersons<=10 ? 2 : 0;
         birthdayPeople = Math.min(birthdayPeople, maxAllowed);
 
         double dBirth = discService.birthdayDiscount(
-                birthdayPeople>0, totalPersons, birthdayPeople);
+                birthdayPeople > 0, totalPersons, birthdayPeople);
 
         double totalDisc  = dGroup + dFreq + dBirth;
         double finalPrice = base * (1 - totalDisc/100);
 
-        // 5) Mapping ParticipantsDTO → entidad
+        // 5) Mapping ParticipantsDTO → entidad
         List<Participant> entities =
                 dto.participantsList().stream().map(p -> {
                     Participant e = new Participant();
@@ -71,7 +72,7 @@ public class ReservationService {
                     return e;
                 }).collect(Collectors.toList());
 
-        // 6) Construir reserva
+        // 6) Construir reserva
         Reservation res = new Reservation();
         res.setReservationCode(dto.reservationCode());
         res.setClient(client);
@@ -83,53 +84,56 @@ public class ReservationService {
         res.setDiscountPercentage(totalDisc);
         res.setFinalPrice(finalPrice);
         res.getParticipantsList().addAll(entities);
-        entities.forEach(p -> p.setReservation(res));      // relación inversa
+        entities.forEach(p -> p.setReservation(res));  // relación inversa
 
         clientService.incrementVisits(client);
 
-        return reservationRepo.save(res);
+        /* ------------ persistir y enviar confirmación --------------------- */
+        Reservation saved = reservationRepo.save(res);
+        mailService.sendConfirmation(saved);            // ← NUEVO
+        return saved;
     }
 
-    /* ---------- MÉTODO update (igual a version create pero sobre entidad existente) -------- */
+    /* ---------- MÉTODO update (igual a create pero sobre entidad existente) -------- */
     public Reservation update(Long id, ReservationRequestDTO dto) {
 
         Reservation res = findById(id);
 
-        // actualizar código
+        // actualizar código
         res.setReservationCode(dto.reservationCode());
 
-        // actualizar sesión existente
+        // actualizar sesión existente
         Session ses = res.getSession();
         ses.setSessionDate(dto.sessionDate());
         ses.setStartTime(dto.startTime());
         ses.setEndTime(dto.endTime());
 
-        // chequeo de capacidad
+        // chequeo de capacidad
         int ocupados = reservationRepo.participantsInSession(ses.getId())
                 - res.getParticipants();
         int totalPersons = dto.participantsList().size();
         if (ocupados + totalPersons > ses.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
 
-        // tarifa y minutos
+        // tarifa y minutos
         TariffConfig cfg = tariffService.forDate(dto.sessionDate(), dto.rateType());
         double base = cfg.getPrice();
         int minutes = cfg.getMinutes();
 
-        // descuentos
+        // descuentos
         double dGroup = discService.groupDiscount(totalPersons);
         double dFreq  = discService.frequentDiscount(
                 clientService.getTotalVisitsThisMonth(res.getClient()));
         int birthdayPeople = (int) dto.participantsList().stream()
                 .filter(ParticipantDTO::birthday).count();
-        int maxAllowed = totalPersons<=5?1 : totalPersons<=10?2 : 0;
+        int maxAllowed = totalPersons<=5 ? 1 : totalPersons<=10 ? 2 : 0;
         birthdayPeople = Math.min(birthdayPeople, maxAllowed);
         double dBirth = discService.birthdayDiscount(
-                birthdayPeople>0, totalPersons, birthdayPeople);
+                birthdayPeople > 0, totalPersons, birthdayPeople);
 
         double totalDisc = dGroup + dFreq + dBirth;
 
-        // aplicar cambios
+        // aplicar cambios
         res.setParticipants(totalPersons);
         res.setDuration(minutes);
         res.setRateType(cfg.getRate());
@@ -137,13 +141,11 @@ public class ReservationService {
         res.setDiscountPercentage(totalDisc);
         res.setFinalPrice(base * (1 - totalDisc/100));
 
-        // reemplazar lista de participantes
+        // reemplazar lista de participantes
         res.getParticipantsList().clear();
-        List<Participant> entities = dto.participantsList().stream().map(p -> {
-            Participant e = new Participant(null, p.fullName(), p.email(),
-                    p.birthday(), res);
-            return e;
-        }).toList();
+        List<Participant> entities = dto.participantsList().stream().map(p ->
+                new Participant(null, p.fullName(), p.email(), p.birthday(), res)
+        ).toList();
         res.getParticipantsList().addAll(entities);
 
         return reservationRepo.save(res);
