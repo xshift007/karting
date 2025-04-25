@@ -55,6 +55,7 @@ public class Reservation {
 
     /* >>> NUEVO: lista de integrantes */
     @OneToMany(mappedBy = "reservation",
-            cascade = CascadeType.ALL, orphanRemoval = true)
+            cascade = CascadeType.ALL, orphanRemoval = true,
+            fetch = FetchType.EAGER)
     private List<Participant> participantsList = new ArrayList<>();
 }

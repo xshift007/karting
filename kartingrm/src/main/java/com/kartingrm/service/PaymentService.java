@@ -6,9 +6,9 @@ import com.kartingrm.entity.Reservation;
 import com.kartingrm.repository.PaymentRepository;
 import com.kartingrm.repository.ReservationRepository;
 import com.kartingrm.service.mail.MailService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +19,7 @@ public class PaymentService {
     private final PdfService            pdf;
     private final MailService           mail;
 
+    /** – REGISTRA EL PAGO --------------------------------------------------- */
     @Transactional
     public Payment pay(PaymentRequestDTO dto){
 
@@ -28,7 +29,7 @@ public class PaymentService {
         Payment p = new Payment();
         p.setReservation(r);
         p.setPaymentMethod(dto.method());
-        p.setVatAmount(r.getFinalPrice()*0.19);
+        p.setVatAmount(r.getFinalPrice() * 0.19);
         p.setFinalAmountInclVat(r.getFinalPrice() + p.getVatAmount());
 
         payments.save(p);
@@ -38,5 +39,17 @@ public class PaymentService {
 
         return p;
     }
-}
 
+    /** – GENERA Y DEVUELVE EL COMPROBANTE EN PDF --------------------------- */
+    @Transactional(readOnly = true)
+    public byte[] generateReceipt(Long paymentId) {
+
+        Payment p = payments.findById(paymentId)
+                .orElseThrow(() -> new IllegalArgumentException("Pago no existe"));
+
+        /* fuerza la carga de la colección antes de salir del PC */
+        p.getReservation().getParticipantsList().size();
+
+        return pdf.buildReceipt(p.getReservation(), p);
+    }
+}
