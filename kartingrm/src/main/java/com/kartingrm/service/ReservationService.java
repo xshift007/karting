@@ -26,6 +26,7 @@ public class ReservationService {
     private final ClientService         clients;
     private final SessionRepository     sessions;
     private final PricingService        pricing;
+    private final MailService mail;
 
     /* ---------------- crear ------------------------------------------------ */
     @Transactional
@@ -47,7 +48,6 @@ public class ReservationService {
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override public void afterCommit() {
-                        MailService mail = null;
                         mail.sendConfirmation(r);
                     }
                 });
