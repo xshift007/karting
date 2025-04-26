@@ -1,26 +1,29 @@
 // src/pages/WeeklyRack.jsx
 import React, { useEffect, useState, useMemo } from 'react'
-import { Table, TableHead, TableBody, TableRow, TableCell, Paper, Typography } from '@mui/material'
+import {
+  Table, TableHead, TableBody, TableRow, TableCell,
+  Paper, Typography, Tooltip, Box
+} from '@mui/material'
 import sessionService from '../services/session.service'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 
 const DOW = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']
 
-export default function WeeklyRack() {
-  const [rack, setRack] = useState({})
+export default function WeeklyRack({ onCellClickAdmin }) {
+  const [rack, setRack] = useState({})          // nunca null
   const navigate = useNavigate()
 
   const monday = startOfWeek(new Date(), { weekStartsOn:1 })
   const from   = format(monday,'yyyy-MM-dd')
   const to     = format(addDays(monday,6),'yyyy-MM-dd')
 
-  /* ---------- efecto con AbortController ---------- */
+  /* ---------- carga con AbortController ---------- */
   useEffect(() => {
     const controller = new AbortController()
 
     sessionService.weekly(from, to, { signal: controller.signal })
-      .then(r => setRack(r.data))
+      .then(r => setRack(r.data ?? {}))        // <= fallback seguro
       .catch(err => {
         if (!controller.signal.aborted) console.error(err)
       })
@@ -28,20 +31,37 @@ export default function WeeklyRack() {
     return () => controller.abort()
   }, [from, to])
 
-  const slots = useMemo(() =>
-    Array.from(new Set(Object.values(rack).flat()
-      .map(s => `${s.startTime}-${s.endTime}`)))
-      .sort((a,b)=>a.localeCompare(b))
-  , [rack])
+  /* ---------- todos los rangos HH:MM-HH:MM existentes ---------- */
+  const slots = useMemo(() => {
+    if (!rack || !Object.keys(rack).length) return []        // <= guarda
+    return Array.from(
+      new Set(
+        Object.values(rack)
+          .flat()
+          .map(s => `${s.startTime}-${s.endTime}`)
+      )
+    ).sort((a,b)=>a.localeCompare(b))
+  }, [rack])
 
-  const onClickCell = (dayIdx, start, end) => {
-    const date = format(addDays(monday, dayIdx),'yyyy-MM-dd')
-    navigate(`/reservations/new?d=${date}&s=${start}&e=${end}`)
+  /* ---------- helpers UI ---------- */
+  const cellColor = pct => (
+    pct === 1        ? 'error.main'    // rojo full
+    : pct >= 0.7     ? 'warning.main'  // naranja casi lleno
+    : 'success.main'                   // verde disponible
+  )
+
+  const handleCellClick = (ses) => {
+    if (!ses) return
+    if (onCellClickAdmin) {
+      onCellClickAdmin(ses.sessionDate, ses.startTime, ses.endTime)
+      return
+    }
+    navigate(`/reservations/new?d=${ses.sessionDate}&s=${ses.startTime}&e=${ses.endTime}`)
   }
 
   /* ---------- JSX ---------- */
   return (
-    <Paper sx={{ p:2 }}>
+    <Paper sx={{ p:2, overflowX:'auto' }}>
       <Typography variant="h5" gutterBottom>
         Disponibilidad (semana {from})
       </Typography>
@@ -49,8 +69,12 @@ export default function WeeklyRack() {
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Hora</TableCell>
-            {DOW.map(d=><TableCell key={d}>{d.slice(0,3)}</TableCell>)}
+            <TableCell sx={{ fontWeight:'bold' }}>Hora</TableCell>
+            {DOW.map(d=>(
+              <TableCell key={d} sx={{ fontWeight:'bold', textAlign:'center' }}>
+                {d.slice(0,3)}
+              </TableCell>
+            ))}
           </TableRow>
         </TableHead>
 
@@ -59,14 +83,34 @@ export default function WeeklyRack() {
             const [start,end] = range.split('-')
             return (
               <TableRow key={range}>
-                <TableCell>{range}</TableCell>
+                <TableCell sx={{ fontWeight:500 }}>{range}</TableCell>
+
                 {DOW.map((d,idx)=>{
-                  const avail = rack[d]?.some(s=>s.startTime===start)
+                  const ses = rack?.[d]?.find(s=>s.startTime === start)
+
+                  if (!ses) return <TableCell key={d+range}></TableCell>
+
+                  const pct = ses.participantsCount / ses.capacity
+                  const isFull = pct === 1
+
                   return (
-                    <TableCell key={d}
-                      sx={{ cursor:avail?'pointer':'default', color:avail?'green':'inherit' }}
-                      onClick={()=> avail && onClickCell(idx,start,end)}>
-                      {avail ? 'Disponible' : ''}
+                    <TableCell key={d+range} sx={{ p:0 }}>
+                      <Tooltip
+                        title={`${ses.participantsCount}/${ses.capacity} karts ocupados`}>
+                        <Box
+                          sx={{
+                            bgcolor: cellColor(pct),
+                            color:  '#fff',
+                            py: .5,
+                            cursor: isFull ? 'not-allowed':'pointer',
+                            textAlign:'center',
+                            '&:hover': { opacity: isFull ? 1 : .8 }
+                          }}
+                          onClick={()=>!isFull && handleCellClick(ses)}
+                        >
+                          {isFull ? 'Full' : 'Disponible'}
+                        </Box>
+                      </Tooltip>
                     </TableCell>
                   )
                 })}
