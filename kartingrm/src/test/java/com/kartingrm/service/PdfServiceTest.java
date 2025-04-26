@@ -5,7 +5,6 @@ import com.kartingrm.service.pricing.DiscountService;
 import org.junit.jupiter.api.Test;
 
 import java.time.*;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -17,8 +16,7 @@ class PdfServiceTest {
 
         DiscountService disc = new DiscountService();
         var clientRepo       = mock(com.kartingrm.repository.ClientRepository.class);
-        ClientService cliSvc = new ClientService(clientRepo);
-        PdfService pdf       = new PdfService(disc, cliSvc);
+        PdfService pdf       = new PdfService(disc, new ClientService(clientRepo, null));
 
         Client c = new Client(1L,"A","a@b.c",null,
                 LocalDate.of(2000,1,1),0, LocalDateTime.now());

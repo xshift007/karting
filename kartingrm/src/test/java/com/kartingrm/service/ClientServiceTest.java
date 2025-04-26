@@ -1,29 +1,35 @@
 package com.kartingrm.service;
 
 import com.kartingrm.entity.Client;
+import com.kartingrm.entity.Visit;
 import com.kartingrm.repository.ClientRepository;
+import com.kartingrm.repository.VisitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClientServiceTest {
 
     @Mock ClientRepository repo;
+    @Mock VisitRepository  visitRepo;
+
     @InjectMocks ClientService svc;
 
     private Client c;
 
     @BeforeEach
-    void setup() {
+    void init() {
         MockitoAnnotations.openMocks(this);
-        c = new Client(1L, "Nombre", "e@x.com", null,
-                LocalDate.of(2000,1,1), 2, LocalDateTime.now());
+        c = new Client(1L,"Nombre","mail@dom.cl",null,
+                LocalDate.of(2000,1,1),0, LocalDateTime.now());
     }
 
     @Test
@@ -43,10 +49,11 @@ class ClientServiceTest {
     @Test
     void incrementVisits_y_getTotalVisitsThisMonth() {
         svc.incrementVisits(c);
-        // c.totalVisits era 2, tras increment pasa a 3
-        assertThat(c.getTotalVisits()).isEqualTo(3);
-        verify(repo).save(c);
-        // getTotalVisitsThisMonth delega en c.getTotalVisits()
-        assertThat(svc.getTotalVisitsThisMonth(c)).isEqualTo(3);
+        verify(visitRepo).save(any(Visit.class));
+
+        when(visitRepo.countByClientAndMonth(eq(1L), anyInt(), anyInt()))
+                .thenReturn(4);
+
+        assertThat(svc.getTotalVisitsThisMonth(c)).isEqualTo(4);
     }
 }

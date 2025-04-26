@@ -17,10 +17,10 @@ public class DiscountService {
                         monthlyVisits >= 2 ? 10 : 0;
     }
 
-    /** 50 % al precio base de, como máximo, dos cumpleañeros. */
+    /** Porcentaje equivalente a aplicar 50 % a 1 o 2 cumpleañeros. */
     public double birthdayDiscount(int participants, int birthdayPeople) {
         if (birthdayPeople == 0) return 0;
-        int applied = Math.min(2, birthdayPeople);
+        int applied = Math.min(2, birthdayPeople);    // máx. dos personas
         return (50.0 * applied) / participants;
     }
 }
