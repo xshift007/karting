@@ -4,11 +4,14 @@ import com.kartingrm.dto.ReservationRequestDTO;
 import com.kartingrm.dto.ReservationRequestDTO.ParticipantDTO;
 import com.kartingrm.entity.*;
 import com.kartingrm.repository.*;
+import com.kartingrm.service.mail.MailService;
 import com.kartingrm.service.pricing.PricingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -38,8 +41,18 @@ public class ReservationService {
 
         var pr = pricing.calculate(dto);
 
-        Reservation r = buildEntity(dto, s, pr);
-        return repo.save(r);
+        Reservation r = repo.save(buildEntity(dto, s, pr));
+
+        /* correo de confirmación fuera de la TX */
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override public void afterCommit() {
+                        MailService mail = null;
+                        mail.sendConfirmation(r);
+                    }
+                });
+
+        return r;
     }
 
     /* ---------------- actualizar ------------------------------------------ */

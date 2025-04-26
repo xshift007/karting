@@ -43,22 +43,21 @@ public class PdfService {
                             "Subtotal","IVA","Total")
                     .forEach(h -> t.addCell(new Cell(new Phrase(h, font(9,true)))));
 
-            double tarifaBase = r.getBasePrice();
-            double pct        = r.getDiscountPercentage();
+
+
+            double precioUnitFinal = r.getFinalPrice() / r.getParticipants();
+            double ivaUnit         = precioUnitFinal * 0.19 / 1.19;   // separar IVA
+            double netoUnit        = precioUnitFinal - ivaUnit;
 
             for (Participant part : r.getParticipantsList()) {
-
-                double subtotal = tarifaBase * (1 - pct/100);
-                double iva      = subtotal * 0.19;
-                double total    = subtotal + iva;
-
                 t.addCell(part.getFullName());
-                t.addCell(String.format("%.0f", tarifaBase));
-                t.addCell(pct + "%");
-                t.addCell(String.format("%.0f", subtotal));
-                t.addCell(String.format("%.0f", iva));
-                t.addCell(String.format("%.0f", total));
+                t.addCell(String.format("%.0f", r.getBasePrice()));        // tarifa base
+                t.addCell(String.format("%.1f %%", r.getDiscountPercentage()));
+                t.addCell(String.format("%.0f", netoUnit));
+                t.addCell(String.format("%.0f", ivaUnit));
+                t.addCell(String.format("%.0f", precioUnitFinal));
             }
+
             doc.add(t);
 
             /* resume */

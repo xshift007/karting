@@ -16,8 +16,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
        SELECT COALESCE(SUM(r.participants),0)
        FROM Reservation r
        WHERE r.session.id = :sessionId
+         AND r.status <> com.kartingrm.entity.ReservationStatus.CANCELLED
     """)
     int participantsInSession(Long sessionId);
+
+
 
 }
 
