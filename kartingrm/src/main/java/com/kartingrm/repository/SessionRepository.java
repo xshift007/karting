@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
 
@@ -22,5 +23,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 """)
     boolean existsOverlap(LocalDate date, LocalTime start, LocalTime end);
 
+
+    Optional<Session> findBySessionDateAndStartTimeAndEndTime(
+            LocalDate date, LocalTime startTime, LocalTime endTime);
 }
 

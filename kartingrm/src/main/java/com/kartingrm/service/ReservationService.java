@@ -3,159 +3,112 @@ package com.kartingrm.service;
 import com.kartingrm.dto.ReservationRequestDTO;
 import com.kartingrm.dto.ReservationRequestDTO.ParticipantDTO;
 import com.kartingrm.entity.*;
-import com.kartingrm.repository.ReservationRepository;
-import com.kartingrm.service.mail.MailService;                // ← NUEVO
-import com.kartingrm.service.pricing.DiscountService;
-import com.kartingrm.service.pricing.TariffService;
-import jakarta.transaction.Transactional;
+import com.kartingrm.exception.OverlapException;
+import com.kartingrm.repository.*;
+import com.kartingrm.service.pricing.PricingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ReservationService {
 
-    private final ReservationRepository reservationRepo;
-    private final SessionService        sessionService;
-    private final ClientService         clientService;
-    private final DiscountService       discService;
-    private final TariffService         tariffService;
-    private final MailService           mailService;        // ← NUEVO
+    private final ReservationRepository repo;
+    private final ClientService         clients;
+    private final SessionRepository     sessions;
+    private final PricingService        pricing;
 
     /* --------------------------------------------------------------------- */
+    @Transactional
     public Reservation createReservation(ReservationRequestDTO dto) {
 
-        Client client = clientService.get(dto.clientId());
+        Session s = findSessionOrThrow(dto.sessionDate(),
+                dto.startTime(), dto.endTime());
 
-        // 1) Crear la sesión (valida solapamiento internamente)
-        Session session = sessionService.create(
-                new Session(null, dto.sessionDate(),
-                        dto.startTime(), dto.endTime(), 15));
-
-        // 2) Capacidad
-        int ocupados = reservationRepo.participantsInSession(session.getId());
-        int totalPersons = dto.participantsList().size();
-        if (ocupados + totalPersons > session.getCapacity())
+        int already = repo.participantsInSession(s.getId());
+        int requested = dto.participantsList().size();
+        if (already + requested > s.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
 
-        // 3) Tarifa base y minutos
-        TariffConfig cfg = tariffService.forDate(dto.sessionDate(), dto.rateType());
-        double base  = cfg.getPrice();
-        int minutes  = cfg.getMinutes();
+        PricingService.PricingResult pr = pricing.calculate(dto);
 
-        // 4) Descuentos
-        double dGroup = discService.groupDiscount(totalPersons);
-        double dFreq  = discService.frequentDiscount(
-                clientService.getTotalVisitsThisMonth(client));
-        int birthdayPeople = (int) dto.participantsList().stream()
-                .filter(ParticipantDTO::birthday).count();
-        int maxAllowed = totalPersons<=5 ? 1 : totalPersons<=10 ? 2 : 0;
-        birthdayPeople = Math.min(birthdayPeople, maxAllowed);
-
-        double dBirth = discService.birthdayDiscount(
-                birthdayPeople > 0, totalPersons, birthdayPeople);
-
-        double totalDisc  = dGroup + dFreq + dBirth;
-        double finalPrice = base * (1 - totalDisc/100);
-
-        // 5) Mapping ParticipantsDTO → entidad
-        List<Participant> entities =
-                dto.participantsList().stream().map(p -> {
-                    Participant e = new Participant();
-                    e.setFullName(p.fullName());
-                    e.setEmail(p.email());
-                    e.setBirthday(p.birthday());
-                    return e;
-                }).collect(Collectors.toList());
-
-        // 6) Construir reserva
-        Reservation res = new Reservation();
-        res.setReservationCode(dto.reservationCode());
-        res.setClient(client);
-        res.setSession(session);
-        res.setDuration(minutes);
-        res.setParticipants(totalPersons);
-        res.setRateType(cfg.getRate());
-        res.setBasePrice(base);
-        res.setDiscountPercentage(totalDisc);
-        res.setFinalPrice(finalPrice);
-        res.getParticipantsList().addAll(entities);
-        entities.forEach(p -> p.setReservation(res));  // relación inversa
-
-        clientService.incrementVisits(client);
-
-        /* ------------ persistir y enviar confirmación --------------------- */
-        Reservation saved = reservationRepo.save(res);
-        mailService.sendConfirmation(saved);            // ← NUEVO
-        return saved;
+        Reservation r = buildEntity(dto, s, pr);
+        return repo.save(r);
     }
 
-    /* ---------- MÉTODO update (igual a create pero sobre entidad existente) -------- */
+    /* --------------------------------------------------------------------- */
+    @Transactional
     public Reservation update(Long id, ReservationRequestDTO dto) {
 
-        Reservation res = findById(id);
+        Reservation existing = findById(id);
 
-        // actualizar código
-        res.setReservationCode(dto.reservationCode());
+        // se prohíbe cambiar de bloque; solo se admite variar participantes
+        if (!existing.getSession().getSessionDate().equals(dto.sessionDate()) ||
+                !existing.getSession().getStartTime()   .equals(dto.startTime())   ||
+                !existing.getSession().getEndTime()     .equals(dto.endTime()))
+            throw new IllegalStateException("No se puede cambiar el bloque; cree otra reserva");
 
-        // actualizar sesión existente
-        Session ses = res.getSession();
-        ses.setSessionDate(dto.sessionDate());
-        ses.setStartTime(dto.startTime());
-        ses.setEndTime(dto.endTime());
-
-        // chequeo de capacidad
-        int ocupados = reservationRepo.participantsInSession(ses.getId())
-                - res.getParticipants();
-        int totalPersons = dto.participantsList().size();
-        if (ocupados + totalPersons > ses.getCapacity())
+        Session s = existing.getSession();
+        int already = repo.participantsInSession(s.getId()) - existing.getParticipants();
+        int requested = dto.participantsList().size();
+        if (already + requested > s.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
 
-        // tarifa y minutos
-        TariffConfig cfg = tariffService.forDate(dto.sessionDate(), dto.rateType());
-        double base = cfg.getPrice();
-        int minutes = cfg.getMinutes();
+        PricingService.PricingResult pr = pricing.calculate(dto);
 
-        // descuentos
-        double dGroup = discService.groupDiscount(totalPersons);
-        double dFreq  = discService.frequentDiscount(
-                clientService.getTotalVisitsThisMonth(res.getClient()));
-        int birthdayPeople = (int) dto.participantsList().stream()
-                .filter(ParticipantDTO::birthday).count();
-        int maxAllowed = totalPersons<=5 ? 1 : totalPersons<=10 ? 2 : 0;
-        birthdayPeople = Math.min(birthdayPeople, maxAllowed);
-        double dBirth = discService.birthdayDiscount(
-                birthdayPeople > 0, totalPersons, birthdayPeople);
+        /* actualiza campos */
+        existing.setParticipants(requested);
+        existing.setBasePrice(pr.baseUnit());
+        existing.setDiscountPercentage(pr.discTotalPct());
+        existing.setFinalPrice(pr.finalPrice());
+        existing.getParticipantsList().clear();
+        existing.getParticipantsList()
+                .addAll(toEntities(dto.participantsList(), existing));
 
-        double totalDisc = dGroup + dFreq + dBirth;
+        return repo.save(existing);
+    }
 
-        // aplicar cambios
-        res.setParticipants(totalPersons);
-        res.setDuration(minutes);
-        res.setRateType(cfg.getRate());
-        res.setBasePrice(base);
-        res.setDiscountPercentage(totalDisc);
-        res.setFinalPrice(base * (1 - totalDisc/100));
+    /* --------------------------------------------------------------------- */
+    public List<Reservation> findAll()        { return repo.findAll(); }
+    public Reservation       findById(Long id){ return repo.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Reserva no existe")); }
+    public void              save(Reservation r){ repo.save(r); }
 
-        // reemplazar lista de participantes
-        res.getParticipantsList().clear();
-        List<Participant> entities = dto.participantsList().stream().map(p ->
-                new Participant(null, p.fullName(), p.email(), p.birthday(), res)
+    /* ---------- helpers privados ----------------------------------------- */
+    private Session findSessionOrThrow(LocalDate d, LocalTime s, LocalTime e){
+        return sessions.findBySessionDateAndStartTimeAndEndTime(d, s, e)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "La sesión solicitada no existe; debe crearla el administrador"));
+    }
+
+    private Reservation buildEntity(ReservationRequestDTO dto,
+                                    Session s,
+                                    PricingService.PricingResult pr){
+
+        Client c = clients.get(dto.clientId());
+
+        Reservation r = new Reservation();
+        r.setReservationCode(dto.reservationCode());
+        r.setClient(c);
+        r.setSession(s);
+        r.setDuration(s.getCapacity());                    // minutos totales (misma lógica)
+        r.setParticipants(dto.participantsList().size());
+        r.setRateType(dto.rateType());
+        r.setBasePrice(pr.baseUnit());
+        r.setDiscountPercentage(pr.discTotalPct());
+        r.setFinalPrice(pr.finalPrice());
+        r.setParticipantsList(toEntities(dto.participantsList(), r));
+        return r;
+    }
+
+    private List<Participant> toEntities(List<ParticipantDTO> list, Reservation r){
+        return list.stream().map(p ->
+                new Participant(null, p.fullName(), p.email(), p.birthday(), r)
         ).toList();
-        res.getParticipantsList().addAll(entities);
-
-        return reservationRepo.save(res);
     }
-
-    /* ---------------- auxiliares ---------------- */
-    public List<Reservation> findAll(){ return reservationRepo.findAll(); }
-    public Reservation findById(Long id){
-        return reservationRepo.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
-    }
-    public void save(Reservation r){ reservationRepo.save(r); }
 }
