@@ -9,6 +9,8 @@ import com.kartingrm.service.pricing.PricingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;                 // + añadir
+import org.springframework.web.server.ResponseStatusException; // + añadir
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -81,9 +83,14 @@ public class ReservationService {
 
     /* ---------- helpers privados ----------------------------------------- */
     private Session findSessionOrThrow(LocalDate d, LocalTime s, LocalTime e){
-        return sessions.findBySessionDateAndStartTimeAndEndTime(d, s, e)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "La sesión solicitada no existe; debe crearla el administrador"));
+        return sessions
+                .findBySessionDateAndStartTimeAndEndTime(d, s, e)
+                .orElseThrow(() ->
+                        /* AHORA DEVUELVE 404 (NOT_FOUND) ------------------- */
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "La sesión solicitada no existe; "
+                                        + "debe crearla el administrador"));
     }
 
     private Reservation buildEntity(ReservationRequestDTO dto,
@@ -111,4 +118,6 @@ public class ReservationService {
                 new Participant(null, p.fullName(), p.email(), p.birthday(), r)
         ).toList();
     }
+
+
 }
