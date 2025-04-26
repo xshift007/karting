@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -28,4 +30,9 @@ public class Session {
 
     @Column(name="capacity", nullable=false)
     private Integer capacity;  // Total de karts disponibles para este bloque
+
+    // Session.java  (añadir la relación inversa)
+    @OneToMany(mappedBy = "session", cascade = CascadeType.REMOVE)
+    private List<Reservation> reservations = new ArrayList<>();
+
 }

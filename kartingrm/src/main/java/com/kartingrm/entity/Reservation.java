@@ -22,9 +22,12 @@ public class Reservation {
     @ManyToOne @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "session_id")
+    // Reservation.java   (cambiar la relación)
+// antes: @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", nullable = false)
     private Session session;
+
 
     /** Duración total (minutos) */
     @Column(nullable = false)
