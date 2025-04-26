@@ -1,10 +1,10 @@
 package com.kartingrm.entity;
 
+/** Tarifas base del kartódromo */
 public enum RateType {
-    LAP_10,    // Tarifa para 10 vueltas / máx. 10 min
-    LAP_15,    // Tarifa para 15 vueltas / máx. 15 min
-    LAP_20,    // Tarifa para 20 vueltas / máx. 20 min
-    WEEKEND,   // Tarifa especial para fines de semana
-    HOLIDAY,   // Tarifa especial para feriados
-    BIRTHDAY   // Promoción de cumpleaños
+    LAP_10,     // 10 vueltas   · 30 min totales
+    LAP_15,     // 15 vueltas   · 35 min totales
+    LAP_20,     // 20 vueltas   · 40 min totales
+    WEEKEND,    // Sobre-precio fin de semana
+    HOLIDAY     // Sobre-precio feriado
 }

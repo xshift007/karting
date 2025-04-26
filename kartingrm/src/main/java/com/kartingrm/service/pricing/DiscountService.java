@@ -1,6 +1,5 @@
 package com.kartingrm.service.pricing;
 
-import com.kartingrm.entity.Client;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,9 +17,10 @@ public class DiscountService {
                         monthlyVisits >= 2 ? 10 : 0;
     }
 
-    public double birthdayDiscount(boolean isBirthday, int participants, int birthdayPeople) {
-        if (!isBirthday) return 0;
-        // 50 % a (1 ó 2) personas según regla
-        return (50.0 / participants) * birthdayPeople;
+    /** 50 % al precio base de, como máximo, dos cumpleañeros. */
+    public double birthdayDiscount(int participants, int birthdayPeople) {
+        if (birthdayPeople == 0) return 0;
+        int applied = Math.min(2, birthdayPeople);
+        return (50.0 * applied) / participants;
     }
 }

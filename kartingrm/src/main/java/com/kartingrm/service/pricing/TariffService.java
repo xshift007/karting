@@ -3,33 +3,38 @@ package com.kartingrm.service.pricing;
 import com.kartingrm.entity.RateType;
 import com.kartingrm.entity.TariffConfig;
 import com.kartingrm.repository.TariffConfigRepository;
-import com.kartingrm.service.HolidayService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 
+/**
+ * Obtiene la tarifa aplicable considerando fin de semana o feriado.
+ * El precio se sobre-escribe por el especial, pero conserva
+ * los minutos correspondientes a la tarifa solicitada.
+ */
 @Service
 @RequiredArgsConstructor
 public class TariffService {
 
-    private final TariffConfigRepository tariffs;
-    private final HolidayService        holidays;
+    private final TariffConfigRepository repo;
+    private final com.kartingrm.service.HolidayService holidays;
 
-    public TariffConfig forDate(LocalDate date, RateType requested) {
+    public TariffConfig forDate(LocalDate date, RateType requested){
 
-        // 1) El front puede forzar WEEKEND o HOLIDAY
-        if (requested == RateType.WEEKEND || requested == RateType.HOLIDAY)
-            return tariffs.getReferenceById(requested);
+        boolean weekend = date.getDayOfWeek() == DayOfWeek.SATURDAY
+                || date.getDayOfWeek() == DayOfWeek.SUNDAY;
+        boolean holiday = holidays.isHoliday(date);
 
-        DayOfWeek dow = date.getDayOfWeek();
-        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)
-            return tariffs.getReferenceById(RateType.WEEKEND);
+        if (!weekend && !holiday)
+            return repo.findById(requested).orElseThrow();
 
-        if (holidays.isHoliday(date))
-            return tariffs.getReferenceById(RateType.HOLIDAY);
+        RateType special = holiday ? RateType.HOLIDAY : RateType.WEEKEND;
+        TariffConfig base       = repo.findById(requested).orElseThrow();
+        TariffConfig specialCfg = repo.findById(special).orElseThrow();
 
-        return tariffs.getReferenceById(requested);        // tarifa “normal”
+        /* mismo rate - distinto precio */
+        return new TariffConfig(requested, specialCfg.getPrice(), base.getMinutes());
     }
 }

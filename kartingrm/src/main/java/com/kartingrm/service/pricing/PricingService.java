@@ -9,39 +9,48 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PricingService {
 
-    private final TariffService  tariff;
+    private final TariffService   tariff;
     private final DiscountService discount;
     private final com.kartingrm.service.ClientService clientSvc;
 
     public PricingResult calculate(ReservationRequestDTO dto) {
 
         TariffConfig cfg = tariff.forDate(dto.sessionDate(), dto.rateType());
-        double baseUnit  = cfg.getPrice();                       // precio por persona
+        double baseUnit  = cfg.getPrice();        // CLP por persona
+        int    minutes   = cfg.getMinutes();
         int    people    = dto.participantsList().size();
 
+        /* descuentos ------------------------------------------------------ */
         double dGroup = discount.groupDiscount(people);
-        int    visits = clientSvc
-                .getTotalVisitsThisMonth(clientSvc.get(dto.clientId()));
-        double dFreq  = discount.frequentDiscount(visits);
 
-        long   bdays  = dto.participantsList()
+        int visitsThisMonth = clientSvc.getTotalVisitsThisMonth(
+                clientSvc.get(dto.clientId()));
+        double dFreq = discount.frequentDiscount(visitsThisMonth);
+
+        long bdaysCount = dto.participantsList()
                 .stream().filter(ReservationRequestDTO.ParticipantDTO::birthday)
                 .count();
-        double dBday = discount.birthdayDiscount(bdays > 0, people, (int) bdays);
+        double dBdayPct = discount.birthdayDiscount(people, (int) bdaysCount);
 
-        double totalDiscPct = dGroup + dFreq + dBday;
-        double finalPrice   = Math.round(baseUnit * people *
-                (1 - totalDiscPct / 100));
+        /* aplicación secuencial: grupo → frecuente, luego descuento
+           directo de cumpleaños (50 % a 1 – 2 personas) ------------------ */
+        double subtotal      = baseUnit * people;                 // precio sin desc.
+        double afterGroup    = subtotal * (1 - dGroup/100);
+        double afterFreq     = afterGroup * (1 - dFreq/100);
+        double bdayAmount    = Math.min(2, bdaysCount) * baseUnit * 0.5;
+        double finalPrice    = Math.round(afterFreq - bdayAmount);
+        double totalDiscPct  = (subtotal - finalPrice) * 100 / subtotal;
 
-        return new PricingResult(baseUnit, dGroup, dFreq, dBday,
-                totalDiscPct, finalPrice);
+        return new PricingResult(baseUnit, dGroup, dFreq, dBdayPct,
+                totalDiscPct, finalPrice, minutes);
     }
 
-    /* ------------ DTO interno ------------ */
+    /* -------- resultado interno ---------------------------------------- */
     public record PricingResult(double baseUnit,
-                                double discGroup,
-                                double discFreq,
-                                double discBirthday,
+                                double discGroupPct,
+                                double discFreqPct,
+                                double discBirthdayPct,
                                 double discTotalPct,
-                                double finalPrice) { }
+                                double finalPrice,
+                                int    minutes) { }
 }

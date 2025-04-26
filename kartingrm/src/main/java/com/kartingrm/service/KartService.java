@@ -9,6 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Control básico del estado de los karts.
+ * No se asocian a reservas individuales: solo interesa el
+ * conteo disponible / reservado.
+ */
 @Service
 @RequiredArgsConstructor
 public class KartService {
@@ -17,20 +22,27 @@ public class KartService {
 
     public List<Kart> findAll() { return repo.findAll(); }
 
-    /** Reserva `n` karts disponibles y los marca RESERVED; devuelve los asignados */
+    /** Reserva <code>n</code> karts disponibles y los marca RESERVED. */
     @Transactional
     public List<Kart> allocate(int n) {
-        List<Kart> free = repo.findAll()
-                .stream()
+
+        List<Kart> free = repo.findAll().stream()
                 .filter(k -> k.getStatus() == KartStatus.AVAILABLE)
                 .limit(n)
                 .toList();
-        if (free.size() < n) {
+        if (free.size() < n)
             throw new IllegalStateException("No hay karts suficientes libres");
-        }
+
         free.forEach(k -> k.setStatus(KartStatus.RESERVED));
         repo.saveAll(free);
         return free;
+    }
+
+    /** Libera karts previamente asignados. */
+    @Transactional
+    public void release(List<Kart> karts){
+        karts.forEach(k -> k.setStatus(KartStatus.AVAILABLE));
+        repo.saveAll(karts);
     }
 
     @Transactional
