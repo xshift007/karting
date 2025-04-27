@@ -43,9 +43,9 @@ export function computePrice ({
 
   /* precios unitarios tras aplicar secuencialmente */
   const afterGroup   = base * (1 - g / 100);
-  const afterFreq    = afterGroup * (1 - f / 100);
-  const unitReg      = afterFreq;
-  const unitBirth    = afterFreq * 0.5;
+  const ownerUnit = afterGroup * (1 - f / 100);
+  const unitReg   = afterGroup;
+  const unitBirth = afterGroup * 0.5;
 
   const final = Math.round(
     unitReg   * (participants - winners) +

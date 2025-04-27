@@ -118,11 +118,10 @@ public class PdfService {
                 total += unit;
 
                 table.addCell(pt.getFullName());
-                table.addCell(String.format("%.0f", r.getBasePrice()));
-                table.addCell(pct);
-                table.addCell(String.format("%.0f", Math.round(net)));
-                table.addCell(String.format("%.0f", Math.round(iva)));
-                table.addCell(String.format("%.0f", Math.round(unit)));
+                table.addCell(String.format("%d",   Math.round(r.getBasePrice())));
+                table.addCell(String.format("%d",   Math.round(net)));
+                table.addCell(String.format("%d",   Math.round(iva)));
+                table.addCell(String.format("%d",   Math.round(unit)));
             }
 
             doc.add(table); doc.add(new Paragraph(" "));
