@@ -16,6 +16,7 @@ import reservationService from '../services/reservation.service'
 import clientService      from '../services/client.service'
 import sessionService     from '../services/session.service'
 import { computePrice }   from '../helpers'
+import { DURATIONS }   from '../helpers'
 
 /* ---------------- esquema ---------------- */
 const schema = yup.object({
@@ -46,6 +47,18 @@ export default function ReservationForm(){
 
   const [clients,  setClients]  = useState([])
   const [sessions, setSessions] = useState([])  // lista aplanada
+  const rateType    = watch('rateType')
+
+  /* -------- ❶ calcular hora fin automática -------- */
+  useEffect(() => {
+    if (!startTime || !rateType) return
+    const dur = DURATIONS[rateType] || 0
+    if (!dur) return
+    const end = dayjs(`${sessionDate} ${startTime}`)
+                 .add(dur, 'minute')
+                 .format('HH:mm')
+    setValue('endTime', end, { shouldValidate:true, shouldDirty:true })
+  }, [startTime, rateType, sessionDate, setValue])
 
   /* ---------------- form ---------------- */
   const { control, setValue, handleSubmit, watch,
@@ -175,6 +188,22 @@ export default function ReservationForm(){
             }
           />
 
+          {/* ---- Tipo de reserva / vueltas ---- */}
+          <Controller
+            name="rateType"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} select label="Tipo de reserva"
+                error={!!errors.rateType}
+                helperText={errors.rateType?.message}>
+                <MenuItem value="LAP_10">10&nbsp;vueltas (30 min)</MenuItem>
+                <MenuItem value="LAP_15">15&nbsp;vueltas (35 min)</MenuItem>
+                <MenuItem value="LAP_20">20&nbsp;vueltas (40 min)</MenuItem>
+              </TextField>
+            )}
+          />
+
+          {/* ---- Hora fin (solo-lectura) ---- */}
           <Controller
             name="endTime"
             control={control}
@@ -184,12 +213,14 @@ export default function ReservationForm(){
                 type="time"
                 label="Hora fin"
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ step:300, min:startTime||minStart, max:maxEnd }}
+                inputProps={{ readOnly:true }}
+                disabled
                 error={!!errors.endTime}
                 helperText={errors.endTime?.message}
               />
             )}
           />
+
 
           <Typography variant="h6">Participantes</Typography>
           {fields.map((item, idx) => (

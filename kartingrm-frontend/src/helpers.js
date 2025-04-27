@@ -14,6 +14,13 @@ export const PRICES = {
  * @param {number} [p.birthdayCount=0]
  * @param {number} [p.visitsThisMonth=0]
  */
+
+export const DURATIONS = {
+  LAP_10 : 30,   // 10 vueltas
+  LAP_15 : 35,   // 15 vueltas
+  LAP_20 : 40    // 20 vueltas
+};
+
 export function computePrice ({
   rateType,
   participants,

@@ -95,13 +95,13 @@ export default function WeeklyRack({ onCellClickAdmin }) {
 
                   if (!ses) return <TableCell key={d+range}></TableCell>
 
-                  const pct = ses.participantsCount / ses.capacity
-                  const isFull = pct === 1
-
+                  const pct     = ses.participantsCount / ses.capacity
+                  const isFull  = pct === 1
+                  const label   = `${ses.participantsCount}/${ses.capacity}`
+                                  
                   return (
                     <TableCell key={d+range} sx={{ p:0 }}>
-                      <Tooltip
-                        title={`${ses.participantsCount}/${ses.capacity} karts ocupados`}>
+                      <Tooltip title={`Reservados ${label}`}>
                         <Box
                           sx={{
                             bgcolor: cellColor(pct),
@@ -113,7 +113,7 @@ export default function WeeklyRack({ onCellClickAdmin }) {
                           }}
                           onClick={()=>!isFull && handleCellClick(ses)}
                         >
-                          {isFull ? 'Full' : 'Disponible'}
+                          {label}
                         </Box>
                       </Tooltip>
                     </TableCell>
