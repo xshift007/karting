@@ -13,7 +13,7 @@ export const DURATIONS = {
 };
 
 /**
- * Replica exacta del cálculo del backend.
+ * Cálculo idéntico al backend (descuentos secuenciales).
  */
 export function computePrice ({
   rateType,
@@ -22,39 +22,44 @@ export function computePrice ({
   visitsThisMonth = 0
 }) {
   const base = PRICES[rateType] ?? 0;
-  const subtotal = base * participants;
 
   /* % grupo */
-  const discGroup =
+  const g =
     participants <= 2 ? 0 :
     participants <= 5 ? 10 :
     participants <=10 ? 20 : 30;
 
   /* % frecuente */
-  const discFreq =
+  const f =
     visitsThisMonth >= 7 ? 30 :
     visitsThisMonth >= 5 ? 20 :
     visitsThisMonth >= 2 ? 10 : 0;
 
-  /* % cumpleaños según reglas nuevas */
-  let discBirth = 0;
-  if (birthdayCount === 1 && participants >= 3 && participants <= 5) {
-    discBirth = 50 / participants;
-  } else if (birthdayCount >= 2 && participants >= 6 && participants <= 15) {
-    discBirth = 100 / participants;     // 2 personas al 50 %
-  }
+  /* cumpleañeros con 50 % */
+  const winners =
+    (birthdayCount === 1 && participants >= 3 && participants <= 5) ? 1 :
+    (birthdayCount >= 2  && participants >= 6 && participants <=15) ? Math.min(2,birthdayCount) :
+    0;
 
-  /* aplicación lineal % */
+  /* precios unitarios tras aplicar secuencialmente */
+  const afterGroup   = base * (1 - g / 100);
+  const afterFreq    = afterGroup * (1 - f / 100);
+  const unitReg      = afterFreq;
+  const unitBirth    = afterFreq * 0.5;
+
   const final = Math.round(
-    subtotal * (1 - (discGroup + discFreq + discBirth) / 100)
+    unitReg   * (participants - winners) +
+    unitBirth * winners
   );
-  const totalDisc = ((subtotal - final) * 100) / subtotal;
+
+  const totalDisc = ((base * participants - final) * 100) /
+                    (base * participants);
 
   return {
     base,
-    discGroup,
-    discFreq,
-    discBirth,
+    discGroup : g,
+    discFreq  : f,
+    discBirth : winners ? 50 : 0,
     totalDisc,
     final
   };

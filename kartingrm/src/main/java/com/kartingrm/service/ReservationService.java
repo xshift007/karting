@@ -124,7 +124,7 @@ public class ReservationService {
         r.setParticipants(dto.participantsList().size());
         r.setRateType(dto.rateType());
         r.setBasePrice(pr.baseUnit());
-        r.setDiscountPercentage(pr.discTotalPct());
+        r.setDiscountPercentage(pr.totalDiscPct());   // ← cambio
         r.setFinalPrice(pr.finalPrice());
         r.setParticipantsList(toEntities(dto.participantsList(), r));
         return r;
