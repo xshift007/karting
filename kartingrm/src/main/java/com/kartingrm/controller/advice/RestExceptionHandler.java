@@ -22,4 +22,10 @@ public class RestExceptionHandler {
                 .body(new ApiError("BAD_REQUEST",
                         ex.getFieldErrors().get(0).getDefaultMessage()));
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex){
+        return ResponseEntity.status(HttpStatus.CONFLICT)          // 409
+                .body(new ApiError("CONFLICT", ex.getMessage()));
+    }
 }

@@ -34,8 +34,10 @@ public class PaymentService {
         Payment p = new Payment();
         p.setReservation(r);
         p.setPaymentMethod(dto.method());
-        p.setVatAmount(r.getFinalPrice() * 0.19);
-        p.setFinalAmountInclVat(r.getFinalPrice() + p.getVatAmount());
+        double gross = r.getFinalPrice();              // 54 000  ⇠ ya incluye IVA
+        double vat   = gross * 19 / 119;               // desglosar
+        p.setVatAmount(vat);
+        p.setFinalAmountInclVat(gross);
 
         payments.save(p);
 
