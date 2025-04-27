@@ -6,16 +6,14 @@ import com.kartingrm.entity.Client;
 import com.kartingrm.entity.Participant;
 import com.kartingrm.entity.Reservation;
 import com.kartingrm.entity.Session;
-import com.kartingrm.exception.OverlapException;
 import com.kartingrm.repository.ReservationRepository;
-import com.kartingrm.repository.SessionRepository;
 import com.kartingrm.service.mail.MailService;
 import com.kartingrm.service.pricing.PricingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.util.List;
 
@@ -26,7 +24,6 @@ public class ReservationService {
     private final ReservationRepository repo;
     private final ClientService clients;
     private final SessionService sessionService;
-    private final SessionRepository sessions;
     private final PricingService pricing;
     private final MailService mail;
 
@@ -54,9 +51,8 @@ public class ReservationService {
         var pr = pricing.calculate(dto);
         Reservation r = repo.save(buildEntity(dto, s, pr));
         TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronizationAdapter() {
+                new TransactionSynchronization() {
                     @Override public void afterCommit() {
-                        // envío de confirmación...
                         mail.sendConfirmation(r);
                     }
                 });
@@ -85,7 +81,7 @@ public class ReservationService {
         existing.setParticipants(requested);
         existing.setDuration(pr.minutes());
         existing.setBasePrice(pr.baseUnit());
-        existing.setDiscountPercentage(pr.discTotalPct());
+        existing.setDiscountPercentage(pr.totalDiscPct());
         existing.setFinalPrice(pr.finalPrice());
         existing.getParticipantsList().clear();
         existing.getParticipantsList()

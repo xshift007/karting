@@ -77,7 +77,7 @@ public class PdfService {
             int winnersLeft = winners;
 
             Participant ownerPart = list.stream()
-                    .filter(p -> p.getEmail().equalsIgnoreCase(owner.getEmail()))
+                    .filter(part -> part.getEmail().equalsIgnoreCase(owner.getEmail()))
                     .findFirst().orElse(null);
 
             boolean ownerIsBirthday = ownerPart != null && ownerPart.isBirthday();
