@@ -15,42 +15,45 @@ public class PricingService {
 
     public PricingResult calculate(ReservationRequestDTO dto) {
 
+        /* -------- datos base -------- */
         TariffConfig cfg = tariff.forDate(dto.sessionDate(), dto.rateType());
-        double baseUnit  = cfg.getPrice();        // CLP por persona
+        double baseUnit  = cfg.getPrice();
         int    minutes   = cfg.getMinutes();
         int    people    = dto.participantsList().size();
+        double subtotal  = baseUnit * people;
 
-        /* descuentos ------------------------------------------------------ */
+        /* -------- descuentos % -------- */
         double dGroup = discount.groupDiscount(people);
 
         int visitsThisMonth = clientSvc.getTotalVisitsThisMonth(
                 clientSvc.get(dto.clientId()));
         double dFreq = discount.frequentDiscount(visitsThisMonth);
 
-        long bdaysCount = dto.participantsList()
-                .stream().filter(ReservationRequestDTO.ParticipantDTO::birthday)
+        long bdays = dto.participantsList().stream()
+                .filter(ReservationRequestDTO.ParticipantDTO::birthday)
                 .count();
-        double dBdayPct = discount.birthdayDiscount(people, (int) bdaysCount);
+        double dBdayPct = discount.birthdayDiscount(people, (int) bdays);
 
-        /* aplicación secuencial: grupo → frecuente, luego descuento
-           directo de cumpleaños (50 % a 1 – 2 personas) ------------------ */
-        double subtotal      = baseUnit * people;                 // precio sin desc.
-        double afterGroup    = subtotal * (1 - dGroup/100);
-        double afterFreq     = afterGroup * (1 - dFreq/100);
-        double bdayAmount    = Math.min(2, bdaysCount) * baseUnit * 0.5;
-        double finalPrice    = Math.round(afterFreq - bdayAmount);
-        double totalDiscPct  = (subtotal - finalPrice) * 100 / subtotal;
+        /* -------- aplicación de descuentos -------- */
+        double afterPct = subtotal * (1 - (dGroup + dFreq + dBdayPct) / 100);
 
-        return new PricingResult(baseUnit, dGroup, dFreq, dBdayPct,
-                totalDiscPct, finalPrice, minutes);
+        /* final redondeado al peso */
+        double finalPrice   = Math.round(afterPct);
+        double totalDiscPct = (subtotal - finalPrice) * 100 / subtotal;
+
+        return new PricingResult(
+                baseUnit, dGroup, dFreq, dBdayPct,
+                totalDiscPct, finalPrice, minutes
+        );
     }
 
-    /* -------- resultado interno ---------------------------------------- */
-    public record PricingResult(double baseUnit,
-                                double discGroupPct,
-                                double discFreqPct,
-                                double discBirthdayPct,
-                                double discTotalPct,
-                                double finalPrice,
-                                int    minutes) { }
+    /* ---------- resultado ---------- */
+    public record PricingResult(
+            double baseUnit,
+            double discGroupPct,
+            double discFreqPct,
+            double discBirthdayPct,
+            double discTotalPct,
+            double finalPrice,
+            int    minutes) { }
 }
