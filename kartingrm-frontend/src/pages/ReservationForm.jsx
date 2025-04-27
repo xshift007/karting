@@ -5,8 +5,10 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import dayjs from 'dayjs'
 import { nanoid } from 'nanoid'
+import { isWeekend } from 'date-fns'
 import {
-  TextField, Button, Stack, Paper, Typography, MenuItem, IconButton
+  TextField, Button, Stack, Paper, Typography,
+  MenuItem, IconButton, Alert
 } from '@mui/material'
 import { AddCircle, RemoveCircle } from '@mui/icons-material'
 
@@ -20,7 +22,7 @@ const schema = yup.object({
   reservationCode: yup.string().required(),
   clientId:        yup.number().required('Cliente obligatorio'),
   sessionDate:     yup.date().required('Fecha obligatoria'),
-  startTime: yup.string().required('Hora inicio obligatoria'),
+  startTime:       yup.string().required('Hora inicio obligatoria'),
   endTime:   yup.string()
     .required('Hora fin obligatoria')
     .test('is-after','Fin debe ser posterior', function(value){
@@ -42,8 +44,8 @@ export default function ReservationForm(){
   const navigate  = useNavigate()
   const location  = useLocation()
 
-  const [clients,   setClients]   = useState([])
-  const [sessions,  setSessions]  = useState([])          // ← lista ya aplanada
+  const [clients,  setClients]  = useState([])
+  const [sessions, setSessions] = useState([])  // lista aplanada
 
   /* ---------------- form ---------------- */
   const { control, setValue, handleSubmit, watch,
@@ -65,6 +67,13 @@ export default function ReservationForm(){
   const sessionDate = watch('sessionDate')
   const startTime   = watch('startTime')
 
+  // Horarios mínimos/máximos según día
+  const minStart = useMemo(
+    () => isWeekend(new Date(sessionDate)) ? '10:00' : '14:00',
+    [sessionDate]
+  )
+  const maxEnd = '22:00'
+
   /* 1) Código automático */
   useEffect(()=> {
     setValue('reservationCode','R'+nanoid(6).toUpperCase())
@@ -80,51 +89,49 @@ export default function ReservationForm(){
 
   /* 3) clientes */
   useEffect(()=> {
-    const controller = new AbortController()
-    clientService.getAll({ signal: controller.signal })
+    const ctrl = new AbortController()
+    clientService.getAll({ signal: ctrl.signal })
       .then(r => setClients(r.data))
-      .catch(err => { if (!controller.signal.aborted) console.error(err) })
-    return () => controller.abort()
+      .catch(err => { if (!ctrl.signal.aborted) console.error(err) })
+    return () => ctrl.abort()
   },[])
 
-  /* 4) sesiones disponibles (con cupos) */
+  /* 4) sesiones disponibles */
   useEffect(()=> {
     if (!sessionDate) return
-    const controller = new AbortController()
-    sessionService.weekly(sessionDate, sessionDate, { signal: controller.signal })
-      .then(r => {
-        // r.data = { MONDAY:[…], … }  ⇒  aplanamos
-        const list = Object.values(r.data).flat()
-        setSessions(list)
-      })
-      .catch(err => { if (!controller.signal.aborted) console.error(err) })
-    return () => controller.abort()
+    const ctrl = new AbortController()
+    sessionService.weekly(sessionDate, sessionDate, { signal: ctrl.signal })
+      .then(r => setSessions(Object.values(r.data).flat()))
+      .catch(err => { if (!ctrl.signal.aborted) console.error(err) })
+    return () => ctrl.abort()
   },[sessionDate])
 
-  /* 5) slots que aún tienen capacidad */
-  const available = useMemo(() =>
-    sessions.filter(s =>
-      (s.participantsCount + fields.length) <= s.capacity
-    ), [sessions, fields.length])
-
-  /* 6) envío */
+  /* 5) envío */
   const onSubmit = data => {
     reservationService.create(data)
       .then(res => navigate(`/payments/${res.id}`, { replace:true }))
-      .catch(e  => alert(e.response?.data?.message || e.message))
+      .catch(e => alert(e.response?.data?.message || e.message))
   }
 
-  /* 7) resumen dinámico */
+  /* 6) resumen dinámico */
   const summary = computePrice({
-    rateType:       watch('rateType'),
-    participants:   fields.length,
-    birthdayCount:  fields.filter(f => f.birthday).length
+    rateType:      watch('rateType'),
+    participants:  fields.length,
+    birthdayCount: fields.filter(f => f.birthday).length
   })
 
   /* ---------------- render ---------------- */
   return (
     <Paper sx={{p:3, maxWidth:600, mx:'auto'}}>
-      <Typography variant="h5" gutterBottom>Crear Reserva</Typography>
+      <Typography variant="h5" gutterBottom>
+        Crear Reserva
+      </Typography>
+
+      <Alert severity="info" sx={{ mb:2 }}>
+        Horario de Atención: <strong>Lunes–Viernes 14:00–22:00</strong> |{' '}
+        <strong>Sábados, Domingos y Feriados 10:00–22:00</strong>
+      </Alert>
+
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <Stack spacing={2}>
 
@@ -157,44 +164,33 @@ export default function ReservationForm(){
                 type="time"
                 label="Hora inicio"
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }}            // paso de 5 minutos
+                inputProps={{ step:300, min:minStart, max:maxEnd }}
                 error={!!errors.startTime}
                 helperText={errors.startTime?.message}
                 onChange={e => {
                   field.onChange(e)
-                  // al cambiar hora de inicio, resetea la hora fin
-                  setValue('endTime', '')
+                  setValue('endTime','')
                 }}
               />
             }
           />
 
-
           <Controller
             name="endTime"
             control={control}
-            render={({ field }) => {
-              // construye lista de slots posteriores al startTime
-              const endings = available
-                .filter(s => s.startTime === startTime)
-                .map(s => s.endTime)
-                .filter((v,i,a) => a.indexOf(v) === i);  // quita duplicados          
-
-              return (
-                <TextField
-                  {...field}
-                  type="time"
-                  label="Hora fin"
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ step: 300, min: startTime }}
-                  error={!!errors.endTime}
-                  helperText={errors.endTime?.message}
-                />
-              )
-            }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                type="time"
+                label="Hora fin"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ step:300, min:startTime||minStart, max:maxEnd }}
+                error={!!errors.endTime}
+                helperText={errors.endTime?.message}
+              />
+            )}
           />
 
-          {/* -------- participantes -------- */}
           <Typography variant="h6">Participantes</Typography>
           {fields.map((item, idx) => (
             <Stack key={item.id} direction="row" spacing={1} alignItems="center">
@@ -231,7 +227,6 @@ export default function ReservationForm(){
             Agregar participante
           </Button>
 
-          {/* -------- resumen -------- */}
           <Paper variant="outlined" sx={{p:2}}>
             <Typography variant="subtitle1">Resumen</Typography>
             <Typography>Participantes: {fields.length}</Typography>

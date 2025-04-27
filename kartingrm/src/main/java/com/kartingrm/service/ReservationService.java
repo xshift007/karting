@@ -2,20 +2,21 @@ package com.kartingrm.service;
 
 import com.kartingrm.dto.ReservationRequestDTO;
 import com.kartingrm.dto.ReservationRequestDTO.ParticipantDTO;
-import com.kartingrm.entity.*;
-import com.kartingrm.repository.*;
+import com.kartingrm.entity.Client;
+import com.kartingrm.entity.Participant;
+import com.kartingrm.entity.Reservation;
+import com.kartingrm.entity.Session;
+import com.kartingrm.exception.OverlapException;
+import com.kartingrm.repository.ReservationRepository;
+import com.kartingrm.repository.SessionRepository;
 import com.kartingrm.service.mail.MailService;
 import com.kartingrm.service.pricing.PricingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -23,35 +24,42 @@ import java.util.List;
 public class ReservationService {
 
     private final ReservationRepository repo;
-    private final ClientService         clients;
-    private final SessionRepository     sessions;
-    private final PricingService        pricing;
+    private final ClientService clients;
+    private final SessionService sessionService;
+    private final SessionRepository sessions;
+    private final PricingService pricing;
     private final MailService mail;
+
+    @Value("${kartingrm.default-session-capacity:15}")
+    private int defaultCapacity;
 
     /* ---------------- crear ------------------------------------------------ */
     @Transactional
     public Reservation createReservation(ReservationRequestDTO dto) {
+        // 1) Creamos la sesión si no existe
+        Session s = sessionService.createIfAbsent(
+                dto.sessionDate(),
+                dto.startTime(),
+                dto.endTime(),
+                defaultCapacity
+        );
 
-        Session s = findSessionOrThrow(dto.sessionDate(),
-                dto.startTime(), dto.endTime());
-
-        int already   = repo.participantsInSession(s.getId());
+        // 2) Validamos capacidad
+        int already = repo.participantsInSession(s.getId());
         int requested = dto.participantsList().size();
         if (already + requested > s.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
 
+        // 3) Calculamos precios, guardamos reserva y enviamos mail
         var pr = pricing.calculate(dto);
-
         Reservation r = repo.save(buildEntity(dto, s, pr));
-
-        /* correo de confirmación fuera de la TX */
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override public void afterCommit() {
+                        // envío de confirmación...
                         mail.sendConfirmation(r);
                     }
                 });
-
         return r;
     }
 
@@ -62,12 +70,12 @@ public class ReservationService {
         Reservation existing = findById(id);
 
         if (!existing.getSession().getSessionDate().equals(dto.sessionDate()) ||
-                !existing.getSession().getStartTime()   .equals(dto.startTime())   ||
-                !existing.getSession().getEndTime()     .equals(dto.endTime()))
+                !existing.getSession().getStartTime().equals(dto.startTime()) ||
+                !existing.getSession().getEndTime().equals(dto.endTime()))
             throw new IllegalStateException("No se puede cambiar el bloque; cree otra reserva");
 
         Session s = existing.getSession();
-        int already   = repo.participantsInSession(s.getId()) - existing.getParticipants();
+        int already = repo.participantsInSession(s.getId()) - existing.getParticipants();
         int requested = dto.participantsList().size();
         if (already + requested > s.getCapacity())
             throw new IllegalStateException("Capacidad de la sesión superada");
@@ -87,26 +95,24 @@ public class ReservationService {
     }
 
     /* ---------------- consultas ------------------------------------------- */
-    public List<Reservation> findAll() { return repo.findAll(); }
+    public List<Reservation> findAll() {
+        return repo.findAll();
+    }
 
-    public Reservation findById(Long id){
+    public Reservation findById(Long id) {
         return repo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
     }
 
-    public void save(Reservation r){ repo.save(r); }
+    public void save(Reservation r) {
+        repo.save(r);
+    }
 
     /* ---------------- helpers privados ------------------------------------ */
-    private Session findSessionOrThrow(LocalDate d, LocalTime s, LocalTime e){
-        return sessions.findBySessionDateAndStartTimeAndEndTime(d, s, e)
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                "La sesión solicitada no existe; debe crearla el administrador"));
-    }
 
     private Reservation buildEntity(ReservationRequestDTO dto,
                                     Session s,
-                                    PricingService.PricingResult pr){
+                                    PricingService.PricingResult pr) {
 
         Client c = clients.get(dto.clientId());
 
@@ -124,7 +130,7 @@ public class ReservationService {
         return r;
     }
 
-    private List<Participant> toEntities(List<ParticipantDTO> list, Reservation r){
+    private List<Participant> toEntities(List<ParticipantDTO> list, Reservation r) {
         return list.stream()
                 .map(p -> new Participant(null, p.fullName(), p.email(), p.birthday(), r))
                 .toList();

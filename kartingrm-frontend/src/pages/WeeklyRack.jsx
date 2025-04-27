@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   Table, TableHead, TableBody, TableRow, TableCell,
-  Paper, Typography, Tooltip, Box
+  Paper, Typography, Tooltip, Box, Alert
 } from '@mui/material'
 import sessionService from '../services/session.service'
 import { format, addDays, startOfWeek } from 'date-fns'
@@ -62,6 +62,11 @@ export default function WeeklyRack({ onCellClickAdmin }) {
   /* ---------- JSX ---------- */
   return (
     <Paper sx={{ p:2, overflowX:'auto' }}>
+      <Alert severity="info" sx={{ mb:2 }}>
+        Horario de Atención:
+        <strong> Lunes–Viernes 14:00–22:00</strong> |
+        <strong> Sábados, Domingos y Feriados 10:00–22:00</strong>
+      </Alert>
       <Typography variant="h5" gutterBottom>
         Disponibilidad (semana {from})
       </Typography>
