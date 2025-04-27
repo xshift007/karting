@@ -35,23 +35,24 @@ public class PdfService {
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
-            Document doc = new Document(PageSize.A4);   /* … sin cambios … */
+            Document doc = new Document(PageSize.A4);
+            PdfWriter.getInstance(doc, baos);  // ① writer
+            doc.open();                        // ② ¡abrir antes de add()!
 
             /* -------- tabla por participante -------- */
             Table t = new Table(6);
             Stream.of("Cliente","Tarifa","%Descuento",
                             "Subtotal","IVA","Total")
-                    .forEach(h -> t.addCell(new Cell(new Phrase(h, font(9,true)))));
-
-
+                    .forEach(h -> t.addCell(new Cell(
+                            new Phrase(h, font(9,true)))));
 
             double precioUnitFinal = r.getFinalPrice() / r.getParticipants();
-            double ivaUnit         = precioUnitFinal * 0.19 / 1.19;   // separar IVA
+            double ivaUnit         = precioUnitFinal * 0.19 / 1.19;
             double netoUnit        = precioUnitFinal - ivaUnit;
 
             for (Participant part : r.getParticipantsList()) {
                 t.addCell(part.getFullName());
-                t.addCell(String.format("%.0f", r.getBasePrice()));        // tarifa base
+                t.addCell(String.format("%.0f", r.getBasePrice()));
                 t.addCell(String.format("%.1f %%", r.getDiscountPercentage()));
                 t.addCell(String.format("%.0f", netoUnit));
                 t.addCell(String.format("%.0f", ivaUnit));
@@ -59,16 +60,16 @@ public class PdfService {
             }
 
             doc.add(t);
-
-            /* resume */
             doc.add(new Paragraph(" "));
             doc.add(new Paragraph("Precio final grupo: " + r.getFinalPrice()));
             doc.add(new Paragraph("IVA: " + p.getVatAmount()));
             doc.add(new Paragraph("Total (incl. IVA): " + p.getFinalAmountInclVat()));
 
-            doc.close();
+            doc.close();                       // ③ cerrar
             return baos.toByteArray();
         }
-        catch (Exception e) { throw new RuntimeException("Error generando PDF", e); }
+        catch (Exception e) {
+            throw new RuntimeException("Error generando PDF", e);
+        }
     }
 }
