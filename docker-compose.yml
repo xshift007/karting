@@ -3,8 +3,6 @@ version: "3.9"
 services:
   db:
     image: mysql:8
-    container_name: kartingrm-mysql
-    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: kartingrm
@@ -12,47 +10,33 @@ services:
       MYSQL_PASSWORD: kartpass
     volumes:
       - dbdata:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 20s
-      retries: 5
 
-    backend:
-      image: xsh1ft/kartingrm-backend:latest
-      restart: always
-      depends_on: [db]
-      environment:
-        # ─── DB ──────────────────────────
-        SPRING_DATASOURCE_URL:  jdbc:mysql://db:3306/kartingrm
-        SPRING_DATASOURCE_USERNAME: kartuser
-        SPRING_DATASOURCE_PASSWORD: kartpass
-
-        # ─── MAIL ────────────────────────
-        SPRING_MAIL_HOST: smtp.gmail.com        # o tu servidor
-        SPRING_MAIL_PORT: 587
-        SPRING_MAIL_USERNAME: cocanico2017@gmail.com
-        SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
-        SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
-      secrets:
-        mail_pass:
-          file: ./secrets/mail_password.txt
-      expose: ["8080"]
-
-      
+  backend:
+    image: xsh1ft/kartingrm-backend:latest
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_MAIL_USERNAME: youremail@gmail.com
+      SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
+      SPRING_DATASOURCE_USERNAME: kartuser
+      SPRING_DATASOURCE_PASSWORD: kartpass
+    secrets:
+      - mail_password
 
   frontend:
-    image: xsh1ft/kartingrm-frontend:latest     # ← tag actualizado
-    restart: always
-    depends_on: [backend]
-    expose: ["80"]
-
-  gateway:
-    image: nginx:stable-alpine
-    depends_on: [frontend, backend]
+    image: xsh1ft/kartingrm-frontend:latest
+    depends_on:
+      - backend
     ports:
-      - "8070:80"
-    volumes:
-      - ./nginx-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - "80:80"
 
 volumes:
   dbdata:
+
+secrets:
+  mail_password:
+    file: ./secrets/mail_password.txt

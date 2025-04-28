@@ -1,5 +1,4 @@
-version: "3.9"
-
+# docker-compose-ha.yml
 services:
   db:
     image: mysql:8
@@ -11,45 +10,61 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
 
-  # --- BACK-END, 3 réplicas ---
   backend1: &backend
-    image: xsh1ft/kartingrm-backend:latest
-    secrets: [mail_password]
-    environment: &db_env
+    build:
+      context: ./kartingrm
+      dockerfile: Dockerfile
+    image: kartingrm-backend:latest
+    secrets:
+      - mail_password
+    environment:
       SPRING_MAIL_USERNAME: youremail@gmail.com
       SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
       SPRING_DATASOURCE_USERNAME: kartuser
       SPRING_DATASOURCE_PASSWORD: kartpass
-    depends_on: [db]
-    expose: ["8080"]
+    depends_on:
+      - db
+    expose:
+      - "8080"
 
-  secrets:
-    mail_password:
-      file: ./secrets/mail_password.txt
-  backend2: *backend
-  backend3: *backend
+  backend2:
+    <<: *backend
+
+  backend3:
+    <<: *backend
 
   nginx-backend:
     image: nginx:stable-alpine
-    depends_on: [backend1, backend2, backend3]
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
     volumes:
       - ./nginx-backend.conf:/etc/nginx/conf.d/default.conf:ro
-    expose: ["80"]
+    expose:
+      - "80"
 
-  # --- FRONT-END, 3 réplicas ---
   frontend1: &frontend
-    image: xsh1ft/kartingrm-frontend:latest
+    build:
+      context: ./kartingrm-frontend
+      dockerfile: Dockerfile
     depends_on: [nginx-backend]
     expose: ["80"]
 
-  frontend2: *frontend
-  frontend3: *frontend
+  frontend2:
+    <<: *frontend
+
+  frontend3:
+    <<: *frontend
 
   nginx-frontend:
     image: nginx:stable-alpine
-    depends_on: [frontend1, frontend2, frontend3]
+    depends_on:
+      - frontend1
+      - frontend2
+      - frontend3
     volumes:
       - ./nginx-frontend.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
@@ -57,3 +72,7 @@ services:
 
 volumes:
   dbdata:
+
+secrets:
+  mail_password:
+    file: ./secrets/mail_password.txt
