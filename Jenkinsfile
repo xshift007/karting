@@ -2,46 +2,55 @@ pipeline {
     agent any
 
     tools {
-        maven "maven"
+        maven 'maven'
+    }
+
+    environment {
+        // Forzar Docker CLI a usar el contexto 'default'
+        DOCKER_CONTEXT = 'default'
     }
 
     stages {
-        stage("Build JAR File") {
+        stage('Checkout') {
             steps {
-                // Clonar tu repo (rama main)
-                checkout scmGit(
+                // Clona todo el repo, incluidas las carpetas frontend/backend
+                checkout([
+                    $class: 'GitSCM',
                     branches: [[name: '*/main']],
-                    extensions: [],
+                    doGenerateSubmoduleConfigurations: false,
                     userRemoteConfigs: [[
-                        url: 'https://github.com/xshift007/karting.git'
+                        url: 'https://github.com/xshift007/karting.git',
+                        credentialsId: 'git-credentials'
                     ]]
-                )
-                // Entrar en el módulo backend y compilar
-                dir("kartingrm") {
-                    bat "mvn clean install"
+                ])
+            }
+        }
+
+        stage('Build JAR File') {
+            steps {
+                dir('kartingrm') {
+                    // Compila el backend
+                    bat 'mvn clean install'
                 }
             }
         }
 
-        stage("Test") {
+        stage('Test') {
             steps {
-                dir("kartingrm") {
-                    // Ejecuta los tests con el profile "test" que levanta application-test.properties
-                    bat "mvn test"
+                dir('kartingrm') {
+                    // Ejecuta todos los tests (los tests de Spring usan @ActiveProfiles("test"))
+                    bat 'mvn test'
                 }
             }
         }
 
-        stage("Build and Push Docker Image") {
-            environment {
-                // Forzar Docker CLI a usar el contexto 'default'
-                DOCKER_CONTEXT = 'default'
-            }
+        stage('Build & Push Docker Image') {
             steps {
-                dir("kartingrm") {
-                    // Asegura que no intente usar 'desktop-linux'
+                dir('kartingrm') {
+                    // Asegura que Docker use el contexto 'default'
                     bat 'docker context use default || true'
                     script {
+                        // Aquí se usará la credencial ID 'docker-credentials' que ya tienes en Jenkins
                         docker.withRegistry('https://index.docker.io/v1/', 'docker-credentials') {
                             def img = docker.build("xsh1ft/kartingrm:${env.BUILD_NUMBER}")
                             img.push()
