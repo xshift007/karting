@@ -20,7 +20,7 @@ services:
     secrets:
       - mail_password
     environment:
-      SPRING_MAIL_USERNAME: cocanico2017@gmail.com
+      SPRING_MAIL_USERNAME: nicolas.sanchez.al@usach.cl
       SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm

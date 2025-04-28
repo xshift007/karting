@@ -18,7 +18,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_MAIL_USERNAME: youremail@gmail.com
+      SPRING_MAIL_USERNAME: nicolas.sanchez.al@usach.cl
       SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
