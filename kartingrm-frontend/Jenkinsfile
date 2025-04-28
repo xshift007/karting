@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+    stages {
+        stage("Build Frontend") {
+            steps {
+                // Clonar tu repo (rama main)
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/xshift007/karting.git'
+                    ]]
+                )
+                // Entrar en el módulo frontend y construir
+                dir("kartingrm-frontend") {
+                    bat "npm ci"
+                    bat "npm run build"
+                }
+            }
+        }
+        stage("Build and Push Docker Image") {
+            steps {
+                dir("kartingrm-frontend") {
+                    script {
+                        // Autenticarse en DockerHub con la credencial 'docker-credentials'
+                        withDockerRegistry(credentialsId: 'docker-credentials') {
+                            bat "docker build -t xsh1ft/kartingrm-frontend:latest ."
+                            bat "docker push xsh1ft/kartingrm-frontend:latest"
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
