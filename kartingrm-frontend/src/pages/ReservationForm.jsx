@@ -1,3 +1,4 @@
+// src/pages/ReservationForm.jsx
 import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
@@ -15,7 +16,8 @@ import { AddCircle, RemoveCircle } from '@mui/icons-material'
 import reservationService from '../services/reservation.service'
 import clientService      from '../services/client.service'
 import sessionService     from '../services/session.service'
-import { computePrice, DURATIONS } from '../helpers'
+import tariffSvc          from '../services/tariff.service'
+import { computePrice, buildTariffMaps } from '../helpers'
 
 /* ---------------- esquema ---------------- */
 const schema = yup.object({
@@ -48,6 +50,7 @@ export default function ReservationForm(){
   /* ------------ estado auxiliar ------------ */
   const [clients,  setClients]  = useState([])
   const [sessions, setSessions] = useState([])
+  const [tariffs,  setTariffs ] = useState([])       // ← tarifas BD
 
   /* ------------ form principal --------------- */
   const {
@@ -67,7 +70,6 @@ export default function ReservationForm(){
     }
   })
 
-  /* ---- aquí estaba el fallo: ¡faltaba useFieldArray! ---- */
   const { fields, append, remove } = useFieldArray({
     control,
     name:'participantsList'
@@ -77,6 +79,12 @@ export default function ReservationForm(){
   const sessionDate = watch('sessionDate')
   const startTime   = watch('startTime')
   const rateType    = watch('rateType')
+
+  /* ---------- mapas precio / duración ---------- */
+  const { priceMap, durMap } = useMemo(
+    () => buildTariffMaps(tariffs),
+    [tariffs]
+  )
 
   /* ---------- efectos ---------- */
 
@@ -100,7 +108,12 @@ export default function ReservationForm(){
     return ()=>c.abort()
   },[])
 
-  /* 4) cargar sesiones del día (por ahora sin usar) */
+  /* 4) cargar tarifas una vez */
+  useEffect(()=>{
+    tariffSvc.list().then(setTariffs)
+  },[])
+
+  /* 5) cargar sesiones del día (por ahora sin usar) */
   useEffect(()=>{
     if (!sessionDate) return
     const c = new AbortController()
@@ -110,14 +123,14 @@ export default function ReservationForm(){
     return ()=>c.abort()
   },[sessionDate])
 
-  /* 5) calcular hora fin automática */
+  /* 6) calcular hora fin automática */
   useEffect(()=>{
     if (!startTime || !rateType || !sessionDate) return
-    const mins = DURATIONS[rateType] ?? 0
+    const mins = durMap[rateType] ?? 0
     const end  = dayjs(`${sessionDate} ${startTime}`)
                    .add(mins,'minute').format('HH:mm')
     setValue('endTime', end, { shouldValidate:true, shouldDirty:true })
-  },[startTime, rateType, sessionDate, setValue])
+  },[startTime, rateType, sessionDate, durMap, setValue])
 
   /* ---------- envío ---------- */
   const onSubmit = data =>
@@ -131,9 +144,10 @@ export default function ReservationForm(){
     return computePrice({
       rateType,
       participants : fields.length,
-      birthdayCount
+      birthdayCount,
+      prices       : priceMap
     })
-  },[rateType, fields])
+  },[rateType, fields, priceMap])
 
   /* ---------- límites horario ---------- */
   const minStart = useMemo(
@@ -191,15 +205,17 @@ export default function ReservationForm(){
             )}
           />
 
-          {/* ---------- tipo / vueltas ---------- */}
+          {/* ---------- tipo / vueltas (dinámico) ---------- */}
           <Controller name="rateType" control={control}
             render={({ field }) => (
               <TextField {...field} select label="Tipo de reserva"
                 error={!!errors.rateType}
                 helperText={errors.rateType?.message}>
-                <MenuItem value="LAP_10">10 vueltas (30 min)</MenuItem>
-                <MenuItem value="LAP_15">15 vueltas (35 min)</MenuItem>
-                <MenuItem value="LAP_20">20 vueltas (40 min)</MenuItem>
+                {tariffs.map(t => (
+                  <MenuItem key={t.rate} value={t.rate}>
+                    {t.rate}&nbsp;–&nbsp;{t.minutes}&nbsp;min&nbsp;(${t.price})
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />
