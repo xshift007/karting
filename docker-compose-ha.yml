@@ -30,6 +30,8 @@ services:
       - db
     expose:
       - "8080"
+    volumes:
+      - ./secrets/mail_password.txt:/run/secrets/mail_password:ro
 
   backend2:
     <<: *backend
