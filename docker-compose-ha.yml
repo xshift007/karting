@@ -14,13 +14,20 @@ services:
   # --- BACK-END, 3 réplicas ---
   backend1: &backend
     image: xsh1ft/kartingrm-backend:latest
+    secrets: [mail_password]
     environment: &db_env
+      SPRING_MAIL_USERNAME: youremail@gmail.com
+      SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
       SPRING_DATASOURCE_USERNAME: kartuser
       SPRING_DATASOURCE_PASSWORD: kartpass
     depends_on: [db]
     expose: ["8080"]
 
+  secrets:
+    mail_password:
+      file: ./secrets/mail_password.txt
   backend2: *backend
   backend3: *backend
 
