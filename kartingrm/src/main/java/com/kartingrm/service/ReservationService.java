@@ -50,12 +50,12 @@ public class ReservationService {
         // 3) Calculamos precios, guardamos reserva y enviamos mail
         var pr = pricing.calculate(dto);
         Reservation r = repo.save(buildEntity(dto, s, pr));
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override public void afterCommit() {
-                        mail.sendConfirmation(r);
-                    }
-                });
+        //TransactionSynchronizationManager.registerSynchronization(
+        //        new TransactionSynchronization() {
+        //            @Override public void afterCommit() {
+        //               mail.sendConfirmation(r);
+        //            }
+        //        });
         return r;
     }
 
