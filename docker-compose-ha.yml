@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   db:
     image: mysql:8
@@ -17,11 +15,9 @@ services:
       dockerfile: Dockerfile
     image: kartingrm-backend:latest
     restart: unless-stopped
-    secrets:
-      - mail_password
     environment:
       SPRING_MAIL_USERNAME: nicolas.sanchez.al@usach.cl
-      SPRING_MAIL_PASSWORD_FILE: /run/secrets/mail_password
+      SPRING_MAIL_PASSWORD: lflezxzzwqbwgxoa
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
       SPRING_DATASOURCE_USERNAME: kartuser
@@ -30,8 +26,6 @@ services:
       - db
     expose:
       - "8080"
-    volumes:
-      - ./secrets/mail_password.txt:/run/secrets/mail_password:ro
 
   backend2:
     <<: *backend
@@ -81,7 +75,3 @@ services:
 
 volumes:
   dbdata:
-
-secrets:
-  mail_password:
-    file: ./secrets/mail_password.txt
