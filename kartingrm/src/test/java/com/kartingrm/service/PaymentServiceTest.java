@@ -46,7 +46,12 @@ class PaymentServiceTest {
         Reservation r = resSvc.createReservation(dto);
         Payment     p = paySvc.pay(new PaymentRequestDTO(r.getId(), "cash"));
 
-        assertThat(p.getFinalAmountInclVat())
-                .isCloseTo(r.getFinalPrice()*1.19, within(0.01));
+        /* El monto almacenado YA incluye IVA -------------------------- */
+        assertThat(p.getFinalAmountInclVat()).isEqualTo(r.getFinalPrice());
+
+        /* IVA guardado debe ser 19 % del bruto dentro del mismo precio */
+        assertThat(p.getVatAmount())
+                .isCloseTo(r.getFinalPrice() * 19 / 119, within(0.01));
     }
 }
+

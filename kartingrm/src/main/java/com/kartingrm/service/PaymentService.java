@@ -15,15 +15,17 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 public class PaymentService {
 
+    private static final double VAT_RATE = 0.19;     // 19 %
+
     private final ReservationRepository reservations;
     private final PaymentRepository     payments;
     private final PdfService            pdf;
     private final MailService           mail;
     private final ClientService         clients;
 
-    /** Registra el pago y, al confirmar la transacción, envía el comprobante. */
+    /** Registra el pago y, tras commit, envía el comprobante PDF. */
     @Transactional
-    public Payment pay(PaymentRequestDTO dto){
+    public Payment pay(PaymentRequestDTO dto) {
 
         Reservation r = reservations.findById(dto.reservationId())
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no existe"));
@@ -31,22 +33,24 @@ public class PaymentService {
         if (r.getStatus() != ReservationStatus.PENDING)
             throw new IllegalStateException("La reserva ya fue pagada o cancelada");
 
+        /* ----------- el precio ya INCLUYE IVA ----------- */
+        double gross = r.getFinalPrice();             // p.e. 30 000
+        double vat   = gross * VAT_RATE / (1 + VAT_RATE);   // 19 % incluido
+        //  = 30 000 × 19 / 119
+
         Payment p = new Payment();
         p.setReservation(r);
         p.setPaymentMethod(dto.method());
-        double gross = r.getFinalPrice();              // 54 000  ⇠ ya incluye IVA
-        double vat   = gross * 19 / 119;               // desglosar
         p.setVatAmount(vat);
         p.setFinalAmountInclVat(gross);
-
         payments.save(p);
 
-        // confirma la reserva y aumenta visitas del cliente
+        /* confirma reserva y registra visita */
         r.setStatus(ReservationStatus.CONFIRMED);
         reservations.save(r);
         clients.incrementVisits(r.getClient());
 
-        /* envío de correo fuera de la transacción ------------------------- */
+        /* envía recibo una vez confirmada la transacción */
         TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronizationAdapter() {
                     @Override public void afterCommit() {
@@ -58,13 +62,16 @@ public class PaymentService {
         return p;
     }
 
+    /** PDF ya generado para un pago dado */
     @Transactional(readOnly = true)
     public byte[] generateReceipt(Long paymentId) {
 
         Payment p = payments.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Pago no existe"));
 
-        p.getReservation().getParticipantsList().size(); // inicializa colección
+        // fuerza la carga de participantes
+        p.getReservation().getParticipantsList().size();
+
         return pdf.buildReceipt(p.getReservation(), p);
     }
 }

@@ -13,141 +13,140 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Stream;
 
-/**
- * Recibo con reglas:
- *   • Grupo → todos
- *   • Frecuente → sólo titular
- *   • 50 % → 1 – 2 cumpleañeros ganadores
- */
 @Service
 @RequiredArgsConstructor
 public class PdfService {
 
+    private static final double VAT_RATE = 0.19;      // 19 %
+
     private final DiscountService disc;
     private final ClientService   clientSvc;
 
-    private static Font f(int size, boolean bold) {
-        return FontFactory.getFont(FontFactory.HELVETICA,
-                size,
-                bold ? Font.BOLD : Font.NORMAL);
+    private static Font f(int s, boolean b){
+        return FontFactory.getFont(FontFactory.HELVETICA, s, b?Font.BOLD:Font.NORMAL);
     }
 
-    /**
-     * Genera el PDF del comprobante; el precio **total** que se muestra
-     * YA incluye IVA.  Se desglosan Neto + IVA sólo a modo informativo
-     * (no se vuelven a sumar).
-     */
+    /* ------------------------------------------------------------------ */
+    /** Localiza al titular entre los participantes (por e-mail, nombre o
+     *  en último término el primero de la lista). */
+    private Participant findOwner(Client owner, List<Participant> list){
+        return list.stream()
+                .filter(p -> p.getEmail() != null &&
+                        p.getEmail().equalsIgnoreCase(owner.getEmail()))
+                .findFirst()
+                .orElseGet(() ->
+                        list.stream()
+                                .filter(p -> p.getFullName() != null &&
+                                        p.getFullName().equalsIgnoreCase(owner.getFullName()))
+                                .findFirst()
+                                .orElse(list.isEmpty() ? null : list.get(0)));
+    }
+    /* ------------------------------------------------------------------ */
+
+    /** Precio recibido = **bruto** (incluye IVA) */
     public byte[] buildReceipt(Reservation r, Payment p) {
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
-            /* ---------- datos base ---------- */
-            int     people   = r.getParticipants();
-            Client  owner    = r.getClient();
-            int     visits   = clientSvc.getTotalVisitsThisMonth(owner);
+            /* -------- datos descuento -------- */
+            int     people = r.getParticipants();
+            Client  owner  = r.getClient();
+            int     visits = clientSvc.getTotalVisitsThisMonth(owner);
 
-            double  gPct     = disc.groupDiscount(people);
-            double  fPct     = disc.frequentDiscount(visits);
+            double gPct  = disc.groupDiscount(people);
+            double fPct  = disc.frequentDiscount(visits);
 
             List<Participant> list = new ArrayList<>(r.getParticipantsList());
+            long  bdays   = list.stream().filter(Participant::isBirthday).count();
+            int   winners = disc.birthdayWinners(people, (int) bdays);
 
-            long   bdayCount = list.stream().filter(Participant::isBirthday).count();
-            int    winners   = disc.birthdayWinners(people, (int) bdayCount);
-
-            /* ---------- PDF ---------- */
+            /* -------- PDF -------- */
             Document doc = new Document(PageSize.A4);
             PdfWriter.getInstance(doc, baos);
             doc.open();
 
-            /* ------ bloque cabecera descuentos ------ */
+            /* cabecera descuentos */
             Table head = new Table(2); head.setWidths(new int[]{2,1});
             Stream.of(new String[][]{
-                    {"Grupo",      "%.0f %%".formatted(gPct)},
-                    {"Frecuente",  "%.0f %%".formatted(fPct)},
-                    {"Cumpleaños", winners > 0 ? "50,0 %" : "0,0 %"}
-            }).forEach(row -> {
-                head.addCell(new Phrase(row[0], f(9,false)));
-                head.addCell(new Phrase(row[1], f(9,false)));
+                    {"Grupo",     "%.0f %%".formatted(gPct)},
+                    {"Frecuente", "%.0f %%".formatted(fPct)},
+                    {"Cumpleaños", winners>0 ? "50,0 %" : "0,0 %"}
+            }).forEach(rw -> {
+                head.addCell(new Phrase(rw[0], f(9,false)));
+                head.addCell(new Phrase(rw[1], f(9,false)));
             });
             doc.add(new Paragraph("Descuentos aplicados:", f(10,true)));
-            doc.add(head);
-            doc.add(new Paragraph(" "));
+            doc.add(head); doc.add(new Paragraph(" "));
 
-            /* ---------- cálculo precio unitario ---------- */
-            double afterGroup = r.getBasePrice() * (1 - gPct / 100);
-            double ownerUnit  = afterGroup * (1 - fPct / 100);
-            double regular    = afterGroup;
+            /* precio unitario BRUTO (incl. IVA) */
+            double afterGroup = r.getBasePrice() * (1 - gPct/100);  // bruto
+            double ownerUnit  = afterGroup * (1 - fPct/100);        // bruto
+            double regular    = afterGroup;                         // bruto
 
-            /* ---------- ganadores 50 % cumpleaños ---------- */
-            Map<Long,Boolean> winnerMap = new HashMap<>();
+            /* quiénes obtienen 50 % */
+            Map<Long,Boolean> winnersMap = new HashMap<>();
             int winnersLeft = winners;
 
-            Participant ownerPart = list.stream()
-                    .filter(pt -> pt.getEmail().equalsIgnoreCase(owner.getEmail()))
-                    .findFirst()
-                    .orElse(null);
+            Participant ownerPart = findOwner(owner, list);
 
-            boolean ownerIsBirthday = ownerPart != null && ownerPart.isBirthday();
-            if (ownerIsBirthday && winnersLeft > 0) {
-                winnerMap.put(ownerPart.getId(), true);
+            if (ownerPart!=null && ownerPart.isBirthday() && winnersLeft>0){
+                winnersMap.put(ownerPart.getId(), true);
                 winnersLeft--;
             }
-            for (Participant pt : list) {
-                if (winnersLeft == 0) break;
-                if (pt.isBirthday() && !winnerMap.containsKey(pt.getId())) {
-                    winnerMap.put(pt.getId(), true);
+            for (Participant pt : list){
+                if (winnersLeft==0) break;
+                if (pt.isBirthday() && !winnersMap.containsKey(pt.getId())){
+                    winnersMap.put(pt.getId(), true);
                     winnersLeft--;
                 }
             }
 
-            /* ---------- detalle por participante ---------- */
-            Table table = new Table(6);
-            Stream.of("Cliente", "Tarifa", "%Descuento",
-                            "Subtotal", "IVA", "Total c/IVA")
-                    .forEach(h ->
-                            table.addCell(new Cell(new Phrase(h, f(9,true)))));
+            /* tabla detalle */
+            Table tbl = new Table(6);
+            Stream.of("Cliente","Tarifa","%Descuento",
+                            "Subtotal","IVA","Total c/IVA")
+                    .forEach(h -> tbl.addCell(new Cell(new Phrase(h, f(9,true)))));
 
-            double total = 0;
-            for (Participant pt : list) {
+            double netTotal=0, vatTotal=0;
+
+            for (Participant pt : list){
 
                 boolean isOwner  = pt == ownerPart;
-                boolean isWinner = Boolean.TRUE.equals(winnerMap.get(pt.getId()));
+                boolean isWinner = Boolean.TRUE.equals(winnersMap.get(pt.getId()));
 
-                double unit = isOwner ? ownerUnit : regular;
-                String pct  = "%.0f".formatted(gPct);         // grupo
-
-                if (isOwner)  pct += " ; %.0f".formatted(fPct); // frecuente
-                if (isWinner) { unit *= 0.5; pct += " ; 50"; }  // cumpleaños
+                double unit = isOwner? ownerUnit : regular;   // bruto
+                String pct  = "%.0f".formatted(gPct);
+                if (isOwner) pct += " ; %.0f".formatted(fPct);
+                if (isWinner){ unit*=0.5; pct += " ; 50"; }
                 pct += " %";
 
-                double iva = unit * 0.19 / 1.19;   // IVA incluido
-                double net = unit - iva;
-                total += unit;
+                double vat = unit * VAT_RATE / (1 + VAT_RATE);   // 19 % incluido
+                double net = unit - vat;
 
-                table.addCell(pt.getFullName());
-                table.addCell(String.format("%d", Math.round(r.getBasePrice())));
-                table.addCell(pct);
-                table.addCell(String.format("%d", Math.round(net)));
-                table.addCell(String.format("%d", Math.round(iva)));
-                table.addCell(String.format("%d", Math.round(unit)));
+                netTotal += net;
+                vatTotal += vat;
+
+                tbl.addCell(pt.getFullName());
+                tbl.addCell(String.format("%d", Math.round(r.getBasePrice())));
+                tbl.addCell(pct);
+                tbl.addCell(String.format("%d", Math.round(net)));
+                tbl.addCell(String.format("%d", Math.round(vat)));
+                tbl.addCell(String.format("%d", Math.round(unit)));
             }
 
-            doc.add(table);
-            doc.add(new Paragraph(" "));
+            doc.add(tbl); doc.add(new Paragraph(" "));
 
-            /* ---------- resumen final ---------- */
-            double vat  = total * 0.19 / 1.19;
-            double netto = total - vat;
-
-            doc.add(new Paragraph("Subtotal (sin IVA): %.0f".formatted(netto)));
-            doc.add(new Paragraph("IVA (19 %%): %.0f".formatted(vat)));
+            /* resumen */
+            double grossTotal = netTotal + vatTotal;
+            doc.add(new Paragraph("Subtotal (sin IVA): %.0f".formatted(netTotal)));
+            doc.add(new Paragraph("IVA (19 %%): %.0f".formatted(vatTotal)));
             doc.add(new Paragraph("Precio final grupo (incl. IVA): %.0f"
-                    .formatted(total)));
+                    .formatted(grossTotal)));
 
             doc.close();
             return baos.toByteArray();
         }
-        catch (Exception e) {
+        catch (Exception e){
             throw new RuntimeException("Error generando PDF", e);
         }
     }

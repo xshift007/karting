@@ -5,31 +5,36 @@ import org.springframework.stereotype.Service;
 @Service
 public class DiscountService {
 
-    /* ---------- % por tamaño de grupo ---------- */
+    /* -------- % por tamaño de grupo -------- */
     public double groupDiscount(int participants) {
         return participants <= 2 ? 0 :
                 participants <= 5 ? 10 :
                         participants <=10 ? 20 : 30;
     }
 
-    /* ---------- % cliente frecuente (sólo titular) ---------- */
+    /* -------- % cliente frecuente (solo titular) -------- */
     public double frequentDiscount(int monthlyVisits) {
         return monthlyVisits >= 7 ? 30 :
                 monthlyVisits >= 5 ? 20 :
                         monthlyVisits >= 2 ? 10 : 0;
     }
 
-    /* ---------- cantidad de cumpleañeros que obtienen 50 % ---------- */
+    /* -------- número de cumpleañeros con 50 % ---------- */
     public int birthdayWinners(int participants, int birthdayPeople) {
-        if (birthdayPeople == 1 && participants >= 3 && participants <= 5)  return 1;
-        if (birthdayPeople >= 2 && participants >= 6 && participants <=15) return 2;
-        return 0;
+
+        if (participants < 3 || birthdayPeople == 0) return 0;
+
+        if (participants <= 5) {
+            // grupos 3-5 ⇒ 1 ganador como máximo
+            return 1;
+        }
+        // grupos 6-15 ⇒ hasta 2 ganadores
+        return Math.min(2, birthdayPeople);
     }
 
-    /* ---------- % equivalente del descuento de cumpleaños (compatibilidad) */
+    /* -------- % equivalente (compatibilidad tests antiguos) */
     public double birthdayDiscount(int participants, int birthdayPeople) {
-        return participants == 0
-                ? 0
-                : birthdayWinners(participants, birthdayPeople) * 50.0 / participants;
+        int winners = birthdayWinners(participants, birthdayPeople);
+        return participants == 0 ? 0 : winners * 50.0 / participants;
     }
 }
