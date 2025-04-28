@@ -1,17 +1,19 @@
 @echo off
-SETLOCAL
+set COMPOSE_FILE=docker-compose-ha.yml
 
-echo ==== 1) Backend: build con Compose ====
-docker-compose -f docker-compose-ha.yml build backend1 || exit /b 1
+echo [1/3] Parando y borrando volúmenes...
+docker-compose -f %COMPOSE_FILE% down -v
 
-echo ==== 2) Frontend: build con Compose ====
-docker-compose -f docker-compose-ha.yml build frontend1 || exit /b 1
+echo [2/3] Construyendo y levantando...
+docker-compose -f %COMPOSE_FILE% up -d --build
 
-echo ==== 3) Levantar servicios en modo HA ====
-docker-compose -f docker-compose-ha.yml up -d || exit /b 1
+echo Esperando 10s para que terminen de iniciar...
+timeout /t 10 /nobreak >nul
 
-echo.
-echo ==== ¡Listo! ====
-echo Frontend → http://localhost:8070
-echo API      → http://localhost:8070/api
-ENDLOCAL
+echo [3/3] Probando endpoints...
+echo Frontend status:
+powershell -Command "(Invoke-WebRequest http://localhost:8070 -UseBasicParsing).StatusCode"
+echo Backend /clients status:
+powershell -Command "(Invoke-WebRequest http://localhost:8070/api/clients -UseBasicParsing).StatusCode"
+
+pause
