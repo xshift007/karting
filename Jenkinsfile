@@ -4,26 +4,36 @@ pipeline {
         maven "maven"
     }
     stages {
-        stage("Checkout") {
+        stage("Build JAR File") {
             steps {
+                // Clonar tu repo (rama main)
                 checkout scmGit(
                     branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: 'https://github.com/xshift007/karting.git']]
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/xshift007/karting.git'
+                    ]]
                 )
-            }
-        }
-        stage("Build JAR & Skip Tests") {
-            steps {
+                // Entrar en el módulo backend y compilar
                 dir("kartingrm") {
-                    // limpia, empaqueta y omite tests
-                    bat "mvn clean install -DskipTests"
+                    bat "mvn clean install"
                 }
             }
         }
+        stage("Test") {
+            steps {
+                dir("kartingrm") {
+                    // Activa el profile "test" para que cargue application-test.properties
+                    bat "mvn test -Ptest"
+                }
+            }
+        }
+
         stage("Build and Push Docker Image") {
             steps {
                 dir("kartingrm") {
                     script {
+                        // Autenticarse en DockerHub con la credencial 'docker-credentials'
                         withDockerRegistry(credentialsId: 'docker-credentials') {
                             bat "docker build -t xsh1ft/kartingrm-backend:latest ."
                             bat "docker push xsh1ft/kartingrm-backend:latest"
