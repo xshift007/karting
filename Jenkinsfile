@@ -1,12 +1,10 @@
 pipeline {
     agent any
+
     tools {
         maven "maven"
     }
-    environment {
-        // Force Docker CLI to use the default context instead of desktop-linux
-        DOCKER_CONTEXT = 'default'
-    }
+
     stages {
         stage("Build JAR File") {
             steps {
@@ -24,28 +22,36 @@ pipeline {
                 }
             }
         }
+
         stage("Test") {
             steps {
                 dir("kartingrm") {
-                    // Activa el profile "test" para que cargue application-test.properties
-                    bat "mvn test -Ptest"
+                    // Ejecuta los tests con el profile "test" que levanta application-test.properties
+                    bat "mvn test"
                 }
             }
         }
 
         stage("Build and Push Docker Image") {
+            environment {
+                // Forzar Docker CLI a usar el contexto 'default'
+                DOCKER_CONTEXT = 'default'
+            }
             steps {
                 dir("kartingrm") {
+                    // Asegura que no intente usar 'desktop-linux'
+                    bat 'docker context use default || true'
                     script {
-                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials-id') {
+                        docker.withRegistry('https://index.docker.io/v1/', 'docker-credentials') {
                             def img = docker.build("xsh1ft/kartingrm:${env.BUILD_NUMBER}")
-                                img.push()
-                            }
+                            img.push()
                         }
+                    }
                 }
             }
         }
     }
+
     post {
         always {
             cleanWs()
