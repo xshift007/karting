@@ -3,6 +3,10 @@ pipeline {
     tools {
         maven "maven"
     }
+    environment {
+        // Force Docker CLI to use the default context instead of desktop-linux
+        DOCKER_CONTEXT = 'default'
+    }
     stages {
         stage("Build JAR File") {
             steps {
@@ -33,12 +37,11 @@ pipeline {
             steps {
                 dir("kartingrm") {
                     script {
-                        // Autenticarse en DockerHub con la credencial 'docker-credentials'
-                        withDockerRegistry(credentialsId: 'docker-credentials') {
-                            bat "docker build -t xsh1ft/kartingrm-backend:latest ."
-                            bat "docker push xsh1ft/kartingrm-backend:latest"
+                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials-id') {
+                            def img = docker.build("xsh1ft/kartingrm:${env.BUILD_NUMBER}")
+                                img.push()
+                            }
                         }
-                    }
                 }
             }
         }
