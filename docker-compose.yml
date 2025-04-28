@@ -17,15 +17,28 @@ services:
       interval: 20s
       retries: 5
 
-  backend:
-    image: xsh1ft/kartingrm-backend:latest      # ← tag actualizado
-    restart: always
-    depends_on: [db]
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/kartingrm
-      SPRING_DATASOURCE_USERNAME: kartuser
-      SPRING_DATASOURCE_PASSWORD: kartpass
-    expose: ["8080"]
+    backend:
+      image: xsh1ft/kartingrm-backend:latest
+      restart: always
+      depends_on: [db]
+      environment:
+        # ─── DB ──────────────────────────
+        SPRING_DATASOURCE_URL:  jdbc:mysql://db:3306/kartingrm
+        SPRING_DATASOURCE_USERNAME: kartuser
+        SPRING_DATASOURCE_PASSWORD: kartpass
+
+        # ─── MAIL ────────────────────────
+        SPRING_MAIL_HOST: smtp.gmail.com        # o tu servidor
+        SPRING_MAIL_PORT: 587
+        SPRING_MAIL_USERNAME: cocanico2017@gmail.com
+        SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+        SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+      secrets:
+        mail_pass:
+          file: ./secrets/mail_password.txt
+      expose: ["8080"]
+
+      
 
   frontend:
     image: xsh1ft/kartingrm-frontend:latest     # ← tag actualizado
