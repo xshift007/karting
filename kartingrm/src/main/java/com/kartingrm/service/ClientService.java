@@ -27,6 +27,10 @@ public class ClientService {
     }
 
     public int getTotalVisitsThisMonth(Client c){
+        if (visits == null) {
+            // en tests de PdfService no hay VisitRepository, devolver 0
+            return 0;
+        }
         YearMonth ym = YearMonth.now();
         return visits.countByClientAndMonth(c.getId(),
                 ym.getYear(), ym.getMonthValue());

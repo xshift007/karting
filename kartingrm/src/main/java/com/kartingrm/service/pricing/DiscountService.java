@@ -34,7 +34,11 @@ public class DiscountService {
 
     /* -------- % equivalente (compatibilidad tests antiguos) */
     public double birthdayDiscount(int participants, int birthdayPeople) {
-        int winners = birthdayWinners(participants, birthdayPeople);
-        return participants == 0 ? 0 : winners * 50.0 / participants;
+        if (participants <= 0 || birthdayPeople <= 0) {
+            return 0.0;
+        }
+        // si hay más cumpleañeros que participantes, los limitamos a 'participants'
+        int winners = Math.min(birthdayPeople, participants);
+        return winners * 50.0 / participants;
     }
 }
