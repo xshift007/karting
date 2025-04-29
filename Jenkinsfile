@@ -13,7 +13,6 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Clona todo el repo, incluidas las carpetas frontend/backend
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
@@ -29,7 +28,6 @@ pipeline {
         stage('Build JAR File') {
             steps {
                 dir('kartingrm') {
-                    // Compila el backend
                     bat 'mvn clean install'
                 }
             }
@@ -38,7 +36,6 @@ pipeline {
         stage('Test') {
             steps {
                 dir('kartingrm') {
-                    // Ejecuta todos los tests (los tests de Spring usan @ActiveProfiles("test"))
                     bat 'mvn test'
                 }
             }
@@ -47,13 +44,13 @@ pipeline {
         stage('Build & Push Docker Image') {
             steps {
                 dir('kartingrm') {
-                    // Asegura que Docker use el contexto 'default'
                     bat 'docker context use default || true'
                     script {
-                        // Aquí se usará la credencial ID 'docker-credentials' que ya tienes en Jenkins
                         docker.withRegistry('https://index.docker.io/v1/', 'docker-credentials') {
+                            // construyo con el número de build...
                             def img = docker.build("xsh1ft/kartingrm:${env.BUILD_NUMBER}")
-                            img.push()
+                            img.push()           // → xsh1ft/kartingrm:<BUILD_NUMBER>
+                            img.push('latest')   // → xsh1ft/kartingrm:latest
                         }
                     }
                 }
