@@ -1,0 +1,8 @@
+# evita subir el árbol completo de dependencias
+node_modules
+# si generas dist en Jenkins y luego lo copias, ignora build anterior
+dist
+# archivos de configuración local innecesarios
+.env*
+.git
+Jenkinsfile
