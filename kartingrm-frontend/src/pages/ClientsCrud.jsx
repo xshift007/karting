@@ -8,7 +8,7 @@ export default function ClientsCrud() {
   const [rows, setRows] = useState([])
   const [open, setOpen] = useState(false)
   const [edit, setEdit] = useState(null)
-  const [form, setForm] = useState({ fullName:'', email:'', phone:'', birthDate:'' , adress:'' })
+  const [form, setForm] = useState({ fullName:'', email:'', phone:'', birthDate:'', adress:'' })
 
   /* ---------- carga inicial con AbortController ---------- */
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function ClientsCrud() {
             { field:'email',     headerName:'Email',     width:200 },
             { field:'phone',     headerName:'Teléfono',  width:150 },
             { field:'birthDate', headerName:'Nacimiento',width:130 },
-            { field:'address',  headerName:'Dirección', width:200 },  // ← nuevo
+            /*{ field:'address',  headerName:'Dirección', width:200 },*/ // ← nuevo
             {
               field:'actions', headerName:'Acciones', width:150,
               renderCell: params => (
@@ -96,11 +96,11 @@ export default function ClientsCrud() {
             <TextField label="Nacimiento" type="date" InputLabelProps={{shrink:true}}
               value={form.birthDate}
               onChange={e=>setForm({ ...form, birthDate:e.target.value })}/>
-            {<TextField
+            {/*<TextField
               label="Dirección"
                 value={form.address}
                 onChange={e => setForm({ ...form, address: e.target.value })}
-            />}
+            />*/}
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button onClick={()=>setOpen(false)}>Cancelar</Button>
               <Button variant="contained" onClick={handleSave}>Guardar</Button>
