@@ -3,8 +3,12 @@ export default function Home(){
       <>
         <h1>Bienvenido a KartingRM</h1>
         <p>
-          Gestiona sesiones, reservas y reportes del kartódromo con esta interfaz React.
+          Gestiona sesiones, reservas y clientes del kartódromo de la Region Metropolitana.
         </p>
+        <p>
+          Además puedes obtener reportes claros para evaluar tu negocio.
+        </p>
+
       </>
     )
   }

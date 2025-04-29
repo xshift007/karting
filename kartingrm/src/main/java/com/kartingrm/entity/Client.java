@@ -26,6 +26,9 @@ public class Client {
     private String phone;
     private LocalDate birthDate;
 
+    //@Column(length = 255)
+    //private String address;
+
     @Column(name="total_visits", nullable=false)
     private Integer totalVisits = 0;
 
