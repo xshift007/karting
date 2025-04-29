@@ -8,7 +8,7 @@ export default function ClientsCrud() {
   const [rows, setRows] = useState([])
   const [open, setOpen] = useState(false)
   const [edit, setEdit] = useState(null)
-  const [form, setForm] = useState({ fullName:'', email:'', phone:'', birthDate:'', adress:'' })
+  const [form, setForm] = useState({ fullName:'', email:'', phone:'', birthDate:''/*, adress:''*/ })
 
   /* ---------- carga inicial con AbortController ---------- */
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function ClientsCrud() {
       await reload()
       setOpen(false)
       setEdit(null)
-      setForm({ fullName:'', email:'', phone:'', birthDate:'' })
+      setForm({ fullName:'', email:'', phone:'', birthDate:'',/* adress:'' */})
     } catch (e) {
       console.error(e)
     }
@@ -64,7 +64,7 @@ export default function ClientsCrud() {
             { field:'email',     headerName:'Email',     width:200 },
             { field:'phone',     headerName:'Teléfono',  width:150 },
             { field:'birthDate', headerName:'Nacimiento',width:130 },
-            /*{ field:'address',  headerName:'Dirección', width:200 },*/ // ← nuevo
+            /*{ field:'address',  headerName:'Dirección', width:200 },*/ // Añadir campo
             {
               field:'actions', headerName:'Acciones', width:150,
               renderCell: params => (
